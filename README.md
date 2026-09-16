@@ -49,6 +49,7 @@ OpenCapsule is architected to guarantee user privacy:
 
 ## Build & Test
 
+### Local Build
 ```bash
 # Verify privacy policy & compile
 gradle assembleDebug
@@ -56,6 +57,12 @@ gradle assembleDebug
 # Run unit and compliance tests
 gradle :app:testDebugUnitTest
 ```
+
+### Automated GitHub Actions CI / APK Build
+The project includes a ready-to-use GitHub Actions workflow located at `.github/workflows/build-apk.yml`.
+- **Triggers**: Automatically runs on every push and pull request to `main`/`master`, or manually via GitHub's **Actions -> Run workflow** tab.
+- **Artifacts**: Automatically compiles and uploads `opencapsule-debug-apk` directly to the workflow run summary for 1-click download.
+- **Verification**: Automatically runs Play Protect privacy checks and local JVM unit tests prior to packaging.
 
 ---
 
