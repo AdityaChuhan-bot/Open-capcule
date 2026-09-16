@@ -14,6 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -43,6 +44,14 @@ class GreetingScreenshotTest {
       }
     }
 
-    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
+    val candidateDirs = listOf(
+      File("src/test/screenshots"),
+      File("app/src/test/screenshots"),
+      File(System.getProperty("user.dir"), "src/test/screenshots"),
+      File(System.getProperty("user.dir"), "app/src/test/screenshots")
+    )
+    val existingDir = candidateDirs.firstOrNull { it.exists() } ?: File("src/test/screenshots")
+    val screenshotFile = File(existingDir, "greeting.png")
+    composeTestRule.onRoot().captureRoboImage(filePath = screenshotFile.path)
   }
 }

@@ -11,10 +11,17 @@ class OpenCapsulePolicyTest {
 
   @Test
   fun testManifestEnforcesZeroInternetAndNoAccessibility() {
-    val manifestFile = File("src/main/AndroidManifest.xml")
-    assertTrue("AndroidManifest.xml should exist", manifestFile.exists())
+    val candidates = listOf(
+      File("src/main/AndroidManifest.xml"),
+      File("app/src/main/AndroidManifest.xml"),
+      File("../app/src/main/AndroidManifest.xml"),
+      File(System.getProperty("user.dir"), "src/main/AndroidManifest.xml"),
+      File(System.getProperty("user.dir"), "app/src/main/AndroidManifest.xml")
+    )
+    val manifestFile = candidates.firstOrNull { it.exists() }
+    assertTrue("AndroidManifest.xml should exist in project", manifestFile != null && manifestFile.exists())
 
-    val content = manifestFile.readText()
+    val content = manifestFile!!.readText()
 
     // 1. Strict Play Protect Offline Enforcement
     assertFalse("Must NOT declare INTERNET permission", content.contains("android.permission.INTERNET"))

@@ -18,10 +18,16 @@ abstract class VerifyPlayProtectPrivacyTask : DefaultTask() {
     val file = manifestFile.get().asFile
     if (file.exists()) {
       val content = file.readText()
-      if (content.contains("android.permission.INTERNET")) {
+      val hasInternet = content.lines().any { line ->
+        !line.trim().startsWith("<!--") && line.contains("android.permission.INTERNET")
+      }
+      if (hasInternet) {
         throw GradleException("Security & Policy Violation: INTERNET permission is strictly forbidden in OpenCapsule.")
       }
-      if (content.contains("AccessibilityService")) {
+      val hasAccessibility = content.lines().any { line ->
+        !line.trim().startsWith("<!--") && line.contains("AccessibilityService")
+      }
+      if (hasAccessibility) {
         throw GradleException("Policy Violation: AccessibilityService must not be declared in OpenCapsule.")
       }
     }
