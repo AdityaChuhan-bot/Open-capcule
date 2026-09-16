@@ -1,71 +1,149 @@
-# OpenCapsule
+<div align="center">
+
+# 🌌 OpenCapsule
 
 **Privacy-First Dynamic Island & Contextual Notification Capsule for Android**
 
-OpenCapsule is an original, production-quality Android application inspired by the interaction model of floating status capsules. It brings contextual alerts, live media controls, active countdown timers, ongoing call summaries, and system status indicators directly around your front camera cutout—crafted with fluid spring physics and a strict **privacy-first, offline-only** architecture.
+[![Build & Release](https://github.com/OWNER/OpenCapsule/actions/workflows/build-apk.yml/badge.svg)](https://github.com/OWNER/OpenCapsule/actions/workflows/build-apk.yml)
+[![Latest Release](https://img.shields.io/github/v/release/OWNER/OpenCapsule?color=00e5ff&label=Latest%20APK)](https://github.com/OWNER/OpenCapsule/releases/latest)
+[![Android Min SDK](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%2B)-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
+[![Target SDK](https://img.shields.io/badge/Target%20SDK-36-green?logo=android&logoColor=white)](https://developer.android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-M3-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
+[![Play Protect Offline](https://img.shields.io/badge/Play%20Protect-100%25%20Offline-brightgreen?logo=googleplay&logoColor=white)](PLAY_PROTECT_AUDIT.md)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-Designed from day one for legitimate Google Play distribution and 100% Play Protect compliance.
+<br />
 
----
-
-## Key Features
-
-- **Live Media Controls**: Displays active music playback with album artwork, interactive seek progress, and responsive previous/play/pause/next controls via Android's legitimate `MediaSession` APIs.
-- **Countdown Timers & Stopwatch**: Real-time timer alerts, +1 minute extension, and pause/reset controls.
-- **Phone Call Presentations**: Displays incoming call alerts and elapsed duration for ongoing calls.
-- **Battery & Charging Telemetry**: Instant feedback on AC Fast Charging, USB standard charging, and low battery alerts.
-- **Contextual Notifications**: Minimal notification pills with configurable sensitive content redaction and per-app filtering.
-- **Audio Accessory Status**: Bluetooth and wired headset connection events.
-- **Interactive Live Studio**: In-app simulator test bench with live camera notch alignment and customizable offsets.
-- **Comprehensive Notch Customization**: Full control over punch-hole position (Center, Left, Right), X/Y offsets, collapsed/expanded dimensions, corner radius, and spring animation damping.
-
----
-
-## Strict Privacy & Play Protect Safeguards
-
-OpenCapsule is architected to guarantee user privacy:
-
-1. **Zero Internet Access**: No `android.permission.INTERNET` is declared in the manifest. The application cannot transmit data over the network or establish sockets.
-2. **Zero Third-Party SDKs & Zero Tracking**: No Firebase Analytics, no advertising libraries, no telemetry SDKs, no behavioral tracking.
-3. **Volatile Memory Only**: Notification alerts and playback metadata are kept in volatile memory only. No permanent logging, database caching, or disk persistence of notification text.
-4. **No Accessibility Service Abuse**: OpenCapsule does not use or request an `AccessibilityService`. Overlays are rendered using standard `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY`.
-5. **No Private API Reflection**: Operates exclusively with official, public Android SDK APIs.
-
----
-
-## Permissions & Data Safety
-
-| Permission | Purpose | Optional |
-|---|---|---|
-| `SYSTEM_ALERT_WINDOW` | Renders the capsule above active apps around the camera cutout | No |
-| `BIND_NOTIFICATION_LISTENER_SERVICE` | Monitors selected notifications and active MediaSessions locally | Yes |
-| `FOREGROUND_SERVICE` & `FOREGROUND_SERVICE_SPECIAL_USE` | Keeps the overlay service active with an ongoing status notification | No |
-| `POST_NOTIFICATIONS` | Displays the required foreground service notification with stop action | No |
-| `VIBRATE` | Provides subtle tactile feedback on capsule interactions | No |
-| `READ_PHONE_STATE` | Detects ongoing call duration | Yes |
-| `BLUETOOTH_CONNECT` | Displays audio accessory connection status on Android 12+ | Yes |
-
----
-
-## Build & Test
-
-### Local Build
-```bash
-# Verify privacy policy & compile
-gradle assembleDebug
-
-# Run unit and compliance tests
-gradle :app:testDebugUnitTest
+```
+  ┌────────────────────────────────────────────────────────┐
+  │   ●   OpenCapsule   •   Now Playing: Midnight Echo     │
+  └────────────────────────────────────────────────────────┘
 ```
 
-### Automated GitHub Actions CI / APK Build
-The project includes a ready-to-use GitHub Actions workflow located at `.github/workflows/build-apk.yml`.
-- **Triggers**: Automatically runs on every push and pull request to `main`/`master`, or manually via GitHub's **Actions -> Run workflow** tab.
-- **Artifacts**: Automatically compiles and uploads `opencapsule-debug-apk` directly to the workflow run summary for 1-click download.
-- **Verification**: Automatically runs Play Protect privacy checks and local JVM unit tests prior to packaging.
+*An open-source, non-intrusive floating status capsule that transforms your camera punch-hole into an interactive control center.*
+
+[Download Latest APK](https://github.com/OWNER/OpenCapsule/releases/latest) • [Play Protect Audit](PLAY_PROTECT_AUDIT.md) • [Privacy Policy](PRIVACY.md) • [Report Bug](.github/ISSUE_TEMPLATE/bug_report.md)
+
+</div>
 
 ---
 
-## License
+## ✨ Overview
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+**OpenCapsule** is an original Android application that brings dynamic contextual notifications to your device's front camera cutout. Built with tactile spring physics and Jetpack Compose, it presents live media playback, active countdown timers, incoming and ongoing phone calls, battery charging states, and audio accessory connections within a compact, fluid status pill.
+
+Designed from inception for legitimate Google Play distribution with **100% Google Play Protect compliance** and zero data egress.
+
+---
+
+## 🎯 Key Features
+
+| Feature | Description | Android API Used |
+|---|---|---|
+| 🎵 **Live Media Controller** | Album art, title, artist, live audio wave visualizer, interactive seek progress, previous/play/next controls | `MediaSessionManager` & `MediaController` |
+| ⏱️ **Timers & Stopwatch** | Live countdown animation, instant `+1 Min` button, pause/resume, and reset actions | Local System Timers |
+| 📞 **Call Durations** | Incoming call answering/declining banner and active call elapsed timer | `TelephonyManager` |
+| ⚡ **Battery & Charging** | Real-time indicators for AC Fast Charging, USB standard charging, and low battery | `Intent.ACTION_BATTERY_CHANGED` |
+| 🔔 **Contextual Alerts** | Minimalist notification pills with configurable sensitive content redaction | `NotificationListenerService` |
+| 🎧 **Audio Accessories** | Automatic status banner when Bluetooth headphones or wired earphones connect | System Audio Broadcasts |
+| 🎛️ **Notch Studio & Calibrator** | Real-time simulator test bench with punch-hole presets (Center, Left, Right), X/Y offsets, and size controls | In-App Compose Canvas |
+
+---
+
+## 🛡️ Privacy & Play Protect Guarantees
+
+OpenCapsule implements a defensive architecture with verifiable privacy safeguards:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        OPENCAPSULE ARCHITECTURE                        │
+│                                                                        │
+│  [ Media Sessions ]  [ System Broadcasts ]  [ Notification Listener ] │
+│           │                     │                       │              │
+│           └─────────────────────┼───────────────────────┘              │
+│                                 ▼                                      │
+│                ┌──────────────────────────────────┐                    │
+│                │  Volatile In-Memory Event Stream │                    │
+│                │          (Kotlin StateFlow)      │                    │
+│                └────────────────┬─────────────────┘                    │
+│                                 │                                      │
+│                                 ▼                                      │
+│                ┌──────────────────────────────────┐                    │
+│                │  Jetpack Compose Floating Window │                    │
+│                │  (WindowManager.LayoutParams)    │                    │
+│                └──────────────────────────────────┘                    │
+│                                                                        │
+│   ❌ NO INTERNET PERMISSION   ❌ NO ACCESSIBILITY ABUSE   ❌ NO STORAGE │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Air-Gapped Operation**: OpenCapsule does **NOT** declare `android.permission.INTERNET`. The app is physically incapable of making network connections or sending telemetry off-device.
+2. **Build-Time Verification**: A dedicated Gradle task (`:app:verifyPlayProtectPrivacy`) fails the build immediately if networking or accessibility service declarations are introduced.
+3. **Volatile In-Memory Processing**: Notification contents and playback metadata exist strictly in volatile memory (`StateFlow`) and are erased when dismissed. No database or disk logs are created.
+4. **No Accessibility Abuse**: Overlays are rendered using standard `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE`.
+5. **Foreground Service Transparency**: An ongoing status notification with a one-tap Stop button provides complete user control.
+
+---
+
+## 📥 Download & Installation
+
+### Option 1: Direct APK Download (Recommended)
+1. Go to the [**Latest GitHub Release**](https://github.com/OWNER/OpenCapsule/releases/latest).
+2. Download **`OpenCapsule-latest.apk`**.
+3. Tap the downloaded file on your Android device to install (allow *"Install from unknown sources"* if prompted).
+4. Launch OpenCapsule and follow the 4-step onboarding guide to configure your notch alignment and grant the overlay permission.
+
+### Option 2: Build from Source
+```bash
+# 1. Clone repository
+git clone https://github.com/OWNER/OpenCapsule.git
+cd OpenCapsule
+
+# 2. Grant execute permission
+chmod +x gradlew
+
+# 3. Run compliance tests
+./gradlew :app:testDebugUnitTest
+
+# 4. Assemble debug APK
+./gradlew :app:assembleDebug
+```
+The compiled APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
+
+---
+
+## 🤖 Automated CI / CD Workflow
+
+Every commit pushed to `main` (or version tag `v*`) triggers the automated GitHub Actions workflow (`.github/workflows/build-apk.yml`):
+- Sets up JDK 17 & Gradle 9.3.1.
+- Executes local Play Protect verification and JVM unit tests.
+- Compiles the installable APK.
+- Generates SHA-256 checksums for download integrity.
+- **Automatically publishes the latest APK directly to GitHub Releases** for immediate 1-click download.
+
+---
+
+## 📱 Permissions Breakdown
+
+| Permission | Purpose | Status |
+|---|---|---|
+| `SYSTEM_ALERT_WINDOW` | Renders the capsule overlay window around your camera cutout | Required |
+| `BIND_NOTIFICATION_LISTENER_SERVICE` | Displays active media playback controls and selected notification alerts | Optional |
+| `FOREGROUND_SERVICE_SPECIAL_USE` | Keeps the overlay active with an ongoing status notification | Required |
+| `POST_NOTIFICATIONS` | Displays the foreground service status notification with stop action | Required |
+| `VIBRATE` | Provides subtle haptic feedback during interactive expansions | Required |
+| `READ_PHONE_STATE` | Displays ongoing phone call duration | Optional |
+| `BLUETOOTH_CONNECT` | Displays connected Bluetooth audio device names (Android 12+) | Optional |
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on code style, commit conventions, and our PR workflow.
+
+---
+
+## 📄 License
+
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
