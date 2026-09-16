@@ -122,22 +122,6 @@ fun PermissionAuditScreen(
         isOptional = false,
         checkGranted = { true },
         openSettingsAction = {}
-      ),
-      AuditPermissionItem(
-        name = "Phone Call State (Optional)",
-        technicalId = "android.permission.READ_PHONE_STATE",
-        purpose = "Detects when phone calls start and end to render ongoing call durations.",
-        feature = "Cellular Call Capsule",
-        isOptional = true,
-        checkGranted = { ctx ->
-          ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
-        },
-        openSettingsAction = { ctx ->
-          val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", ctx.packageName, null)
-          }
-          ctx.startActivity(intent)
-        }
       )
     )
   }

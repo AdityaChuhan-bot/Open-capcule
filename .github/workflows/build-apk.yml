@@ -53,9 +53,26 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Prepare build environment & keystore
+      - name: Prepare build environment & keystores
         run: |
-          # 1. Restore or create debug keystore for signing APK builds
+          # 1. Setup production Release keystore
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding release keystore from secrets..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          elif [ ! -f release.keystore ]; then
+            echo "Generating production release keystore..."
+            keytool -genkeypair -v \
+              -keystore release.keystore \
+              -alias opencapsule \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass opencapsule \
+              -keypass opencapsule \
+              -dname "CN=OpenCapsule, OU=Mobile, O=OpenCapsule, L=Mountain View, ST=CA, C=US"
+          fi
+
+          # 2. Restore or create debug keystore
           if [ -f debug.keystore.base64 ] && [ ! -f debug.keystore ]; then
             echo "Decoding debug.keystore from base64..."
             base64 -d debug.keystore.base64 > debug.keystore
@@ -64,7 +81,7 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-          # 2. Ensure .env exists to satisfy secrets gradle plugin
+          # 3. Ensure .env exists to satisfy secrets gradle plugin
           if [ ! -f .env ]; then
             if [ -f .env.example ]; then
               cp .env.example .env
@@ -78,25 +95,35 @@ jobs:
           ./gradlew :app:verifyPlayProtectPrivacy --stacktrace
           ./gradlew :app:testDebugUnitTest --stacktrace || echo "::warning::Unit tests completed with warnings. Continuing APK compilation."
 
-      - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Build Release & Debug APKs
+        run: ./gradlew :app:assembleRelease :app:assembleDebug --stacktrace
 
       - name: Package & Prepare Release Artifacts
         id: package_apk
         run: |
           mkdir -p release-artifacts
           
-          # Locate built debug apk
-          BUILT_APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
-          if [ -f "$BUILT_APK" ]; then
-            cp "$BUILT_APK" release-artifacts/OpenCapsule-latest.apk
-            cp "$BUILT_APK" release-artifacts/OpenCapsule-debug.apk
+          # Prioritize production signed release APK
+          RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          DEBUG_APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+
+          if [ -f "$RELEASE_APK" ]; then
+            echo "Found Release APK: $RELEASE_APK"
+            cp "$RELEASE_APK" release-artifacts/OpenCapsule-release.apk
+            cp "$RELEASE_APK" release-artifacts/OpenCapsule-latest.apk
             
             # If tag exists, create a versioned copy
             if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
               TAG_NAME="${GITHUB_REF#refs/tags/}"
-              cp "$BUILT_APK" "release-artifacts/OpenCapsule-${TAG_NAME}.apk"
+              cp "$RELEASE_APK" "release-artifacts/OpenCapsule-${TAG_NAME}.apk"
             fi
+          elif [ -f "$DEBUG_APK" ]; then
+            echo "Falling back to Debug APK for latest"
+            cp "$DEBUG_APK" release-artifacts/OpenCapsule-latest.apk
+          fi
+
+          if [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" release-artifacts/OpenCapsule-debug.apk
           fi
 
           # Compute SHA-256 Checksums
@@ -173,8 +200,15 @@ jobs:
             ### 🛡️ Privacy & Security Guarantees
             - **100% Offline**: Zero `android.permission.INTERNET` declared; physically incapable of data transmission.
             - **Zero Telemetry**: No tracking SDKs, no behavioral analytics, no external services.
-            - **Volatile Processing**: Notification alerts processed strictly in temporary volatile memory.
+            - **Production Signed**: Signed with Android v1, v2, v3, and v4 signature schemes.
+            - **No High-Risk Permissions**: Removed telephony permissions (`READ_PHONE_STATE`) to eliminate scanner false-positives.
             - **No Accessibility Abuse**: Standard non-intrusive `WindowManager` overlay around front camera punch-holes.
+
+            ### ⚠️ Google Play Protect Notice
+            Because this APK is built from source and sideloaded outside the Google Play Store, Play Protect may display a prompt stating *"Play Protect doesn't recognize this app's developer"*:
+            1. Tap **More details** (or the downward arrow).
+            2. Tap **Install anyway**.
+            *OpenCapsule contains zero network code and zero trackers.*
 
             ### 📋 Checksums
             Please verify the integrity of your download:

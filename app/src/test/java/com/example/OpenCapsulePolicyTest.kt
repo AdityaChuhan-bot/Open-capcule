@@ -30,11 +30,12 @@ class OpenCapsulePolicyTest {
     assertFalse("Must NOT declare AccessibilityService", content.contains("android.accessibilityservice.AccessibilityService"))
     assertFalse("Must NOT contain AccessibilityService intent filter", content.contains("AccessibilityService"))
 
-    // 3. Prohibited tracking permissions
+    // 3. Prohibited tracking & high-risk permissions
     assertFalse("Must NOT declare ACCESS_FINE_LOCATION", content.contains("android.permission.ACCESS_FINE_LOCATION"))
     assertFalse("Must NOT declare RECORD_AUDIO", content.contains("android.permission.RECORD_AUDIO"))
     assertFalse("Must NOT declare CAMERA", content.contains("android.permission.CAMERA"))
     assertFalse("Must NOT declare READ_CONTACTS", content.contains("android.permission.READ_CONTACTS"))
+    assertFalse("Must NOT declare READ_PHONE_STATE", content.contains("android.permission.READ_PHONE_STATE"))
 
     // 4. Must declare legitimate overlay and notification listener
     assertTrue("Must declare SYSTEM_ALERT_WINDOW", content.contains("android.permission.SYSTEM_ALERT_WINDOW"))

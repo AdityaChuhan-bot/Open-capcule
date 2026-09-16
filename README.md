@@ -90,9 +90,10 @@ OpenCapsule implements a defensive architecture with verifiable privacy safeguar
 
 ### Option 1: Direct APK Download (Recommended)
 1. Go to the [**Latest GitHub Release**](https://github.com/OWNER/OpenCapsule/releases/latest).
-2. Download **`OpenCapsule-latest.apk`**.
-3. Tap the downloaded file on your Android device to install (allow *"Install from unknown sources"* if prompted).
-4. Launch OpenCapsule and follow the 4-step onboarding guide to configure your notch alignment and grant the overlay permission.
+2. Download **`OpenCapsule-latest.apk`** (or `OpenCapsule-release.apk`).
+3. Tap the downloaded file on your Android device to install.
+4. **Google Play Protect Notice**: Because this APK is downloaded directly from GitHub rather than through Google Play Store indexing, Play Protect may prompt: *"Play Protect doesn't recognize this app's developer"*. Simply tap **More details** and select **Install anyway**.
+5. Launch OpenCapsule and follow the onboarding setup.
 
 ### Option 2: Build from Source
 ```bash
@@ -106,10 +107,10 @@ chmod +x gradlew
 # 3. Run compliance tests
 ./gradlew :app:testDebugUnitTest
 
-# 4. Assemble debug APK
-./gradlew :app:assembleDebug
+# 4. Assemble release APK
+./gradlew :app:assembleRelease
 ```
-The compiled APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
+The compiled APK will be at `app/build/outputs/apk/release/app-release.apk`.
 
 ---
 
@@ -118,7 +119,7 @@ The compiled APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
 Every commit pushed to `main` (or version tag `v*`) triggers the automated GitHub Actions workflow (`.github/workflows/build-apk.yml`):
 - Sets up JDK 17 & Gradle 9.3.1.
 - Executes local Play Protect verification and JVM unit tests.
-- Compiles the installable APK.
+- Compiles production release-signed and debug APKs using Android v1/v2/v3/v4 signature schemes.
 - Generates SHA-256 checksums for download integrity.
 - **Automatically publishes the latest APK directly to GitHub Releases** for immediate 1-click download.
 
@@ -133,8 +134,6 @@ Every commit pushed to `main` (or version tag `v*`) triggers the automated GitHu
 | `FOREGROUND_SERVICE_SPECIAL_USE` | Keeps the overlay active with an ongoing status notification | Required |
 | `POST_NOTIFICATIONS` | Displays the foreground service status notification with stop action | Required |
 | `VIBRATE` | Provides subtle haptic feedback during interactive expansions | Required |
-| `READ_PHONE_STATE` | Displays ongoing phone call duration | Optional |
-| `BLUETOOTH_CONNECT` | Displays connected Bluetooth audio device names (Android 12+) | Optional |
 
 ---
 

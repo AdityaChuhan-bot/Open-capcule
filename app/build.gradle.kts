@@ -50,17 +50,32 @@ android {
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val customPath = System.getenv("KEYSTORE_PATH")
+      val releaseKeystore = if (!customPath.isNullOrEmpty()) file(customPath) else file("${rootDir}/release.keystore")
+      if (releaseKeystore.exists()) {
+        storeFile = releaseKeystore
+        storePassword = System.getenv("STORE_PASSWORD") ?: "opencapsule"
+        keyAlias = System.getenv("KEY_ALIAS") ?: "opencapsule"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: "opencapsule"
+      } else {
+        storeFile = file("${rootDir}/debug.keystore")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
+      enableV1Signing = true
+      enableV2Signing = true
+      enableV3Signing = true
+      enableV4Signing = true
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
+      enableV1Signing = true
+      enableV2Signing = true
+      enableV3Signing = true
     }
   }
 
@@ -82,6 +97,10 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true

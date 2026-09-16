@@ -13,12 +13,6 @@
     <!-- Subtle haptics feedback when interacting with the capsule -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Optional telephony state for ongoing call capsule presentation -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-
-    <!-- Optional Bluetooth connection status for headset plug/connection alerts -->
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-
     <!-- CRITICAL: No INTERNET permission is declared. OpenCapsule is strictly 100% offline. -->
 
     <application
