@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">OpenCapsule</string>
+    <string name="app_tagline">Your private Dynamic Island-style control center.</string>
+    <string name="notification_listener_service_label">OpenCapsule Notification Listener</string>
+    <string name="overlay_service_label">OpenCapsule Overlay Service</string>
+    <string name="overlay_notification_title">OpenCapsule is Active</string>
+    <string name="overlay_notification_text">Displaying capsule around camera cutout</string>
+    <string name="overlay_notification_stop">Stop Service</string>
+
+    <!-- Notification Disclosure -->
+    <string name="notification_disclosure_title">Notification Access Disclosure</string>
+    <string name="notification_disclosure_body">OpenCapsule can read notifications so it can display selected notification alerts in the capsule. Notification content is processed locally on this device and is not uploaded, sold, shared with advertisers, or used for analytics. You can decline or revoke notification access at any time.</string>
+    <string name="btn_allow_notification_access">Allow Notification Access</string>
+    <string name="btn_not_now">Not Now</string>
+
+    <!-- Overlay Disclosure -->
+    <string name="overlay_disclosure_title">Overlay Permission Disclosure</string>
+    <string name="overlay_disclosure_body">OpenCapsule needs permission to display the capsule above other apps. This permission is used only to render the capsule UI. OpenCapsule does not use this permission to control other applications, record your screen, or collect information from other applications.</string>
+    <string name="btn_enable_overlay">Enable Overlay</string>
+</resources>

@@ -1,0 +1,168 @@
+package com.example.data
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.example.model.AnimationSpeed
+import com.example.model.CapsuleConfig
+import com.example.model.CapsulePosition
+import com.example.model.CapsuleThemeMode
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "opencapsule_preferences")
+
+class CapsulePreferencesRepository(private val context: Context) {
+
+  private object Keys {
+    val IS_OVERLAY_ENABLED = booleanPreferencesKey("is_overlay_enabled")
+    val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
+    val POSITION = stringPreferencesKey("position")
+    val OFFSET_X = intPreferencesKey("offset_x")
+    val OFFSET_Y = intPreferencesKey("offset_y")
+    val COLLAPSED_WIDTH = intPreferencesKey("collapsed_width")
+    val COLLAPSED_HEIGHT = intPreferencesKey("collapsed_height")
+    val EXPANDED_WIDTH = intPreferencesKey("expanded_width")
+    val EXPANDED_HEIGHT = intPreferencesKey("expanded_height")
+    val CORNER_RADIUS = intPreferencesKey("corner_radius")
+    val ANIMATION_SPEED = stringPreferencesKey("animation_speed")
+    val THEME_MODE = stringPreferencesKey("theme_mode")
+    val NOTIF_PREVIEWS = booleanPreferencesKey("notif_previews")
+    val AUTO_COLLAPSE_TIMEOUT = intPreferencesKey("auto_collapse_timeout")
+    val ALWAYS_SHOW_IDLE = booleanPreferencesKey("always_show_idle")
+
+    val FEAT_NOTIF = booleanPreferencesKey("feat_notif")
+    val FEAT_MEDIA = booleanPreferencesKey("feat_media")
+    val FEAT_CALLS = booleanPreferencesKey("feat_calls")
+    val FEAT_CHARGING = booleanPreferencesKey("feat_charging")
+    val FEAT_TIMERS = booleanPreferencesKey("feat_timers")
+    val FEAT_BLUETOOTH = booleanPreferencesKey("feat_bluetooth")
+    val FEAT_DOWNLOADS = booleanPreferencesKey("feat_downloads")
+    val FEAT_SYSTEM_EVENTS = booleanPreferencesKey("feat_system_events")
+
+    val BLOCKED_PACKAGES = stringSetPreferencesKey("blocked_packages")
+  }
+
+  val configFlow: Flow<CapsuleConfig> = context.dataStore.data.map { prefs ->
+    CapsuleConfig(
+      isOverlayEnabled = prefs[Keys.IS_OVERLAY_ENABLED] ?: false,
+      isOnboardingCompleted = prefs[Keys.IS_ONBOARDING_COMPLETED] ?: false,
+      position = try {
+        CapsulePosition.valueOf(prefs[Keys.POSITION] ?: CapsulePosition.CENTER.name)
+      } catch (e: Exception) {
+        CapsulePosition.CENTER
+      },
+      offsetX = prefs[Keys.OFFSET_X] ?: 0,
+      offsetY = prefs[Keys.OFFSET_Y] ?: 12,
+      collapsedWidthDp = prefs[Keys.COLLAPSED_WIDTH] ?: 140,
+      collapsedHeightDp = prefs[Keys.COLLAPSED_HEIGHT] ?: 36,
+      expandedWidthDp = prefs[Keys.EXPANDED_WIDTH] ?: 340,
+      expandedHeightDp = prefs[Keys.EXPANDED_HEIGHT] ?: 150,
+      cornerRadiusDp = prefs[Keys.CORNER_RADIUS] ?: 22,
+      animationSpeed = try {
+        AnimationSpeed.valueOf(prefs[Keys.ANIMATION_SPEED] ?: AnimationSpeed.NORMAL.name)
+      } catch (e: Exception) {
+        AnimationSpeed.NORMAL
+      },
+      themeMode = try {
+        CapsuleThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: CapsuleThemeMode.DYNAMIC_MATERIAL_YOU.name)
+      } catch (e: Exception) {
+        CapsuleThemeMode.DYNAMIC_MATERIAL_YOU
+      },
+      notificationPreviewsEnabled = prefs[Keys.NOTIF_PREVIEWS] ?: true,
+      autoCollapseTimeoutSeconds = prefs[Keys.AUTO_COLLAPSE_TIMEOUT] ?: 5,
+      alwaysShowWhenIdle = prefs[Keys.ALWAYS_SHOW_IDLE] ?: false,
+
+      featureNotifications = prefs[Keys.FEAT_NOTIF] ?: true,
+      featureMedia = prefs[Keys.FEAT_MEDIA] ?: true,
+      featureCalls = prefs[Keys.FEAT_CALLS] ?: true,
+      featureCharging = prefs[Keys.FEAT_CHARGING] ?: true,
+      featureTimers = prefs[Keys.FEAT_TIMERS] ?: true,
+      featureBluetooth = prefs[Keys.FEAT_BLUETOOTH] ?: true,
+      featureDownloads = prefs[Keys.FEAT_DOWNLOADS] ?: true,
+      featureSystemEvents = prefs[Keys.FEAT_SYSTEM_EVENTS] ?: true,
+
+      blockedPackages = prefs[Keys.BLOCKED_PACKAGES] ?: emptySet()
+    )
+  }
+
+  suspend fun updateConfig(update: (CapsuleConfig) -> CapsuleConfig) {
+    context.dataStore.edit { prefs ->
+      val current = CapsuleConfig(
+        isOverlayEnabled = prefs[Keys.IS_OVERLAY_ENABLED] ?: false,
+        isOnboardingCompleted = prefs[Keys.IS_ONBOARDING_COMPLETED] ?: false,
+        position = try {
+          CapsulePosition.valueOf(prefs[Keys.POSITION] ?: CapsulePosition.CENTER.name)
+        } catch (e: Exception) {
+          CapsulePosition.CENTER
+        },
+        offsetX = prefs[Keys.OFFSET_X] ?: 0,
+        offsetY = prefs[Keys.OFFSET_Y] ?: 12,
+        collapsedWidthDp = prefs[Keys.COLLAPSED_WIDTH] ?: 140,
+        collapsedHeightDp = prefs[Keys.COLLAPSED_HEIGHT] ?: 36,
+        expandedWidthDp = prefs[Keys.EXPANDED_WIDTH] ?: 340,
+        expandedHeightDp = prefs[Keys.EXPANDED_HEIGHT] ?: 150,
+        cornerRadiusDp = prefs[Keys.CORNER_RADIUS] ?: 22,
+        animationSpeed = try {
+          AnimationSpeed.valueOf(prefs[Keys.ANIMATION_SPEED] ?: AnimationSpeed.NORMAL.name)
+        } catch (e: Exception) {
+          AnimationSpeed.NORMAL
+        },
+        themeMode = try {
+          CapsuleThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: CapsuleThemeMode.DYNAMIC_MATERIAL_YOU.name)
+        } catch (e: Exception) {
+          CapsuleThemeMode.DYNAMIC_MATERIAL_YOU
+        },
+        notificationPreviewsEnabled = prefs[Keys.NOTIF_PREVIEWS] ?: true,
+        autoCollapseTimeoutSeconds = prefs[Keys.AUTO_COLLAPSE_TIMEOUT] ?: 5,
+        alwaysShowWhenIdle = prefs[Keys.ALWAYS_SHOW_IDLE] ?: false,
+
+        featureNotifications = prefs[Keys.FEAT_NOTIF] ?: true,
+        featureMedia = prefs[Keys.FEAT_MEDIA] ?: true,
+        featureCalls = prefs[Keys.FEAT_CALLS] ?: true,
+        featureCharging = prefs[Keys.FEAT_CHARGING] ?: true,
+        featureTimers = prefs[Keys.FEAT_TIMERS] ?: true,
+        featureBluetooth = prefs[Keys.FEAT_BLUETOOTH] ?: true,
+        featureDownloads = prefs[Keys.FEAT_DOWNLOADS] ?: true,
+        featureSystemEvents = prefs[Keys.FEAT_SYSTEM_EVENTS] ?: true,
+
+        blockedPackages = prefs[Keys.BLOCKED_PACKAGES] ?: emptySet()
+      )
+
+      val newConfig = update(current)
+
+      prefs[Keys.IS_OVERLAY_ENABLED] = newConfig.isOverlayEnabled
+      prefs[Keys.IS_ONBOARDING_COMPLETED] = newConfig.isOnboardingCompleted
+      prefs[Keys.POSITION] = newConfig.position.name
+      prefs[Keys.OFFSET_X] = newConfig.offsetX
+      prefs[Keys.OFFSET_Y] = newConfig.offsetY
+      prefs[Keys.COLLAPSED_WIDTH] = newConfig.collapsedWidthDp
+      prefs[Keys.COLLAPSED_HEIGHT] = newConfig.collapsedHeightDp
+      prefs[Keys.EXPANDED_WIDTH] = newConfig.expandedWidthDp
+      prefs[Keys.EXPANDED_HEIGHT] = newConfig.expandedHeightDp
+      prefs[Keys.CORNER_RADIUS] = newConfig.cornerRadiusDp
+      prefs[Keys.ANIMATION_SPEED] = newConfig.animationSpeed.name
+      prefs[Keys.THEME_MODE] = newConfig.themeMode.name
+      prefs[Keys.NOTIF_PREVIEWS] = newConfig.notificationPreviewsEnabled
+      prefs[Keys.AUTO_COLLAPSE_TIMEOUT] = newConfig.autoCollapseTimeoutSeconds
+      prefs[Keys.ALWAYS_SHOW_IDLE] = newConfig.alwaysShowWhenIdle
+
+      prefs[Keys.FEAT_NOTIF] = newConfig.featureNotifications
+      prefs[Keys.FEAT_MEDIA] = newConfig.featureMedia
+      prefs[Keys.FEAT_CALLS] = newConfig.featureCalls
+      prefs[Keys.FEAT_CHARGING] = newConfig.featureCharging
+      prefs[Keys.FEAT_TIMERS] = newConfig.featureTimers
+      prefs[Keys.FEAT_BLUETOOTH] = newConfig.featureBluetooth
+      prefs[Keys.FEAT_DOWNLOADS] = newConfig.featureDownloads
+      prefs[Keys.FEAT_SYSTEM_EVENTS] = newConfig.featureSystemEvents
+
+      prefs[Keys.BLOCKED_PACKAGES] = newConfig.blockedPackages
+    }
+  }
+}
