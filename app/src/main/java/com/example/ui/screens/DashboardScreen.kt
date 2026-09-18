@@ -107,9 +107,18 @@ fun DashboardScreen(
   DisposableEffect(lifecycleOwner) {
     val observer = LifecycleEventObserver { _, event ->
       if (event == Lifecycle.Event.ON_RESUME) {
-        isOverlayGranted = Settings.canDrawOverlays(context)
+        val overlayNow = Settings.canDrawOverlays(context)
+        isOverlayGranted = overlayNow
         val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
         isNotifListenerGranted = flat != null && flat.contains(context.packageName)
+
+        // If user returned with overlay permission granted, ensure service is running and config is active
+        if (overlayNow && !config.isOverlayEnabled) {
+          CapsuleManager.updateConfig { it.copy(isOverlayEnabled = true) }
+          CapsuleOverlayService.startService(context)
+        } else if (overlayNow && config.isOverlayEnabled) {
+          CapsuleOverlayService.startService(context)
+        }
       }
     }
     lifecycleOwner.lifecycle.addObserver(observer)
@@ -309,6 +318,30 @@ fun DashboardScreen(
           ) {
             Text(if (isNotifListenerGranted) "Configured" else "Enable", fontSize = 12.sp)
           }
+        }
+
+        // Idle Notch Pill toggle
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text("Always Show Idle Pill", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(
+              text = if (config.alwaysShowWhenIdle) "Notch pill visible constantly" else "Only appears during active events",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+
+          Switch(
+            checked = config.alwaysShowWhenIdle,
+            onCheckedChange = { checked ->
+              CapsuleManager.updateConfig { it.copy(alwaysShowWhenIdle = checked) }
+            },
+            colors = SwitchDefaults.colors(checkedThumbColor = PrimaryBlue)
+          )
         }
       }
     }
