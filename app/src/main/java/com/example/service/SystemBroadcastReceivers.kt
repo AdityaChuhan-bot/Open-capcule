@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
 import android.os.BatteryManager
+import androidx.core.content.ContextCompat
 import com.example.core.CapsuleManager
 import com.example.model.CapsuleEvent
 
@@ -56,7 +57,12 @@ class SystemEventsRegistrar(private val context: Context) {
       addAction(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
       addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
     }
-    context.registerReceiver(receiver, filter)
+    ContextCompat.registerReceiver(
+      context,
+      receiver,
+      filter,
+      ContextCompat.RECEIVER_EXPORTED
+    )
   }
 
   fun unregister() {

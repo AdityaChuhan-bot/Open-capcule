@@ -77,7 +77,11 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     createNotificationChannel()
     startForegroundServiceWithNotification()
 
-    systemEventsRegistrar = SystemEventsRegistrar(this).apply { register() }
+    try {
+      systemEventsRegistrar = SystemEventsRegistrar(this).apply { register() }
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to register system events receiver", e)
+    }
 
     if (Settings.canDrawOverlays(this)) {
       initOverlayView()
