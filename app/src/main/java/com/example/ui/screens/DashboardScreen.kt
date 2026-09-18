@@ -54,10 +54,14 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -93,13 +97,25 @@ fun DashboardScreen(
   var showOverlayDisclosure by remember { mutableStateOf(false) }
   var showNotifDisclosure by remember { mutableStateOf(false) }
 
-  val isOverlayGranted = remember(config.isOverlayEnabled) {
-    Settings.canDrawOverlays(context)
+  val lifecycleOwner = LocalLifecycleOwner.current
+  var isOverlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+  var isNotifListenerGranted by remember {
+    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+    mutableStateOf(flat != null && flat.contains(context.packageName))
   }
 
-  val isNotifListenerGranted = remember {
-    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-    flat != null && flat.contains(context.packageName)
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_RESUME) {
+        isOverlayGranted = Settings.canDrawOverlays(context)
+        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        isNotifListenerGranted = flat != null && flat.contains(context.packageName)
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose {
+      lifecycleOwner.lifecycle.removeObserver(observer)
+    }
   }
 
   Column(

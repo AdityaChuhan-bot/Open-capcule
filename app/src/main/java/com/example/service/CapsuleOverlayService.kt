@@ -12,6 +12,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
@@ -21,7 +22,10 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
@@ -47,10 +51,11 @@ import kotlinx.coroutines.launch
  * - Foreground notification visible at all times with one-tap Stop action.
  * - Immediately destroyed if overlay permission is revoked.
  */
-class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
+class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
 
   private val lifecycleRegistry = LifecycleRegistry(this)
   private val savedStateRegistryController = SavedStateRegistryController.create(this)
+  private val appViewModelStore = ViewModelStore()
   private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
   private var windowManager: WindowManager? = null
@@ -60,6 +65,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
   override val lifecycle: Lifecycle get() = lifecycleRegistry
   override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+  override val viewModelStore: ViewModelStore get() = appViewModelStore
 
   override fun onBind(intent: Intent?): IBinder? = null
 
@@ -115,7 +121,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
       .setContentTitle(getString(R.string.overlay_notification_title))
       .setContentText(getString(R.string.overlay_notification_text))
-      .setSmallIcon(R.drawable.ic_launcher_foreground)
+      .setSmallIcon(R.drawable.ic_stat_capsule)
       .setContentIntent(openAppPendingIntent)
       .addAction(
         android.R.drawable.ic_menu_close_clear_cancel,
@@ -126,14 +132,19 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       .setPriority(NotificationCompat.PRIORITY_LOW)
       .build()
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-      startForeground(
-        NOTIFICATION_ID,
-        notification,
-        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-      )
-    } else {
-      startForeground(NOTIFICATION_ID, notification)
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        startForeground(
+          NOTIFICATION_ID,
+          notification,
+          ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        )
+      } else {
+        startForeground(NOTIFICATION_ID, notification)
+      }
+      Log.d(TAG, "Foreground service started with notification")
+    } catch (e: Exception) {
+      Log.e(TAG, "Error starting foreground service notification", e)
     }
   }
 
@@ -171,32 +182,36 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     }
     windowParams = params
 
-    val view = ComposeView(this).apply {
-      setViewTreeLifecycleOwner(this@CapsuleOverlayService)
-      setViewTreeSavedStateRegistryOwner(this@CapsuleOverlayService)
-      setContent {
-        MyApplicationTheme {
-          val activeEvent by CapsuleManager.activeEvent.collectAsState()
-          val isExpanded by CapsuleManager.isExpanded.collectAsState()
-          val config by CapsuleManager.config.collectAsState()
+    try {
+      val view = ComposeView(this).apply {
+        setViewTreeLifecycleOwner(this@CapsuleOverlayService)
+        setViewTreeSavedStateRegistryOwner(this@CapsuleOverlayService)
+        setViewTreeViewModelStoreOwner(this@CapsuleOverlayService)
+        setContent {
+          MyApplicationTheme {
+            val activeEvent by CapsuleManager.activeEvent.collectAsState()
+            val isExpanded by CapsuleManager.isExpanded.collectAsState()
+            val config by CapsuleManager.config.collectAsState()
 
-          if (activeEvent != null || config.alwaysShowWhenIdle) {
-            OpenCapsuleDynamicView(
-              event = activeEvent,
-              isExpanded = isExpanded,
-              config = config,
-              onToggleExpand = { CapsuleManager.toggleExpand() },
-              onCollapse = { CapsuleManager.collapseCapsule() }
-            )
+            if (activeEvent != null || config.alwaysShowWhenIdle) {
+              OpenCapsuleDynamicView(
+                event = activeEvent,
+                isExpanded = isExpanded,
+                config = config,
+                onToggleExpand = { CapsuleManager.toggleExpand() },
+                onCollapse = { CapsuleManager.collapseCapsule() }
+              )
+            }
           }
         }
       }
-    }
-    composeView = view
+      composeView = view
 
-    try {
       windowManager?.addView(view, params)
-    } catch (_: Exception) {}
+      Log.d(TAG, "Overlay ComposeView successfully attached to WindowManager")
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to initialize overlay ComposeView", e)
+    }
 
     // Listen to config changes and update window position
     serviceScope.launch {
@@ -212,7 +227,9 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         currentParams.y = (cfg.offsetY * density).toInt()
         try {
           composeView?.let { windowManager?.updateViewLayout(it, currentParams) }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+          Log.e(TAG, "Error updating overlay layout", e)
+        }
       }
     }
   }
@@ -220,15 +237,19 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
   override fun onDestroy() {
     super.onDestroy()
     lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+    appViewModelStore.clear()
     serviceScope.cancel()
     systemEventsRegistrar?.unregister()
     try {
       composeView?.let { windowManager?.removeViewImmediate(it) }
-    } catch (_: Exception) {}
+    } catch (e: Exception) {
+      Log.e(TAG, "Error removing overlay view", e)
+    }
     composeView = null
   }
 
   companion object {
+    private const val TAG = "CapsuleOverlayService"
     const val CHANNEL_ID = "opencapsule_overlay_channel"
     const val NOTIFICATION_ID = 1001
     const val ACTION_STOP = "com.example.ACTION_STOP_CAPSULE_OVERLAY"

@@ -52,12 +52,16 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -456,10 +460,25 @@ private fun FeatureCheckboxRow(
 // -------------------------------------------------------------
 @Composable
 private fun OnboardingStepPermissions(context: Context) {
-  val canOverlay = remember { Settings.canDrawOverlays(context) }
-  val notifGranted = remember {
+  val lifecycleOwner = LocalLifecycleOwner.current
+  var canOverlay by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+  var notifGranted by remember {
     val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-    flat != null && flat.contains(context.packageName)
+    mutableStateOf(flat != null && flat.contains(context.packageName))
+  }
+
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_RESUME) {
+        canOverlay = Settings.canDrawOverlays(context)
+        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        notifGranted = flat != null && flat.contains(context.packageName)
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose {
+      lifecycleOwner.lifecycle.removeObserver(observer)
+    }
   }
 
   Column(
