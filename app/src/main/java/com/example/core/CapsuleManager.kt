@@ -9,6 +9,7 @@ import android.os.VibratorManager
 import com.example.data.CapsulePreferencesRepository
 import com.example.model.CapsuleConfig
 import com.example.model.CapsuleEvent
+import com.example.service.MediaControlBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -186,31 +187,17 @@ object CapsuleManager {
 
   // User Actions from Capsule Controls
   fun onMediaPlayPause() {
-    val current = _activeEvent.value as? CapsuleEvent.Media ?: return
-    val updated = current.copy(isPlaying = !current.isPlaying)
-    postEvent(updated)
+    MediaControlBridge.playPause()
     performHaptic()
   }
 
   fun onMediaNext() {
-    val current = _activeEvent.value as? CapsuleEvent.Media ?: return
-    val updated = current.copy(
-      title = "Next Track",
-      artist = current.artist,
-      progressMs = 0L
-    )
-    postEvent(updated)
+    MediaControlBridge.next()
     performHaptic()
   }
 
   fun onMediaPrevious() {
-    val current = _activeEvent.value as? CapsuleEvent.Media ?: return
-    val updated = current.copy(
-      title = "Previous Track",
-      artist = current.artist,
-      progressMs = 0L
-    )
-    postEvent(updated)
+    MediaControlBridge.previous()
     performHaptic()
   }
 
