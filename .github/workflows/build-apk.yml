@@ -81,6 +81,11 @@ jobs:
           ./gradlew :app:testDebugUnitTest --stacktrace || echo "::warning::Unit tests completed with warnings. Continuing APK compilation."
 
       - name: Build Release & Debug APKs
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease :app:assembleDebug --stacktrace
 
       - name: Package & Prepare Release Artifacts
