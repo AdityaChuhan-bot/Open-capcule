@@ -35,9 +35,11 @@ data class CapsuleConfig(
   val themeMode: CapsuleThemeMode = CapsuleThemeMode.DYNAMIC_MATERIAL_YOU,
   val notificationPreviewsEnabled: Boolean = true,
   val autoCollapseTimeoutSeconds: Int = 5,
-  val alwaysShowWhenIdle: Boolean = false,
 
-  // Feature Toggles
+  // The overlay service owns the persistent idle state. This setting remains user-configurable,
+  // but enabling the overlay from the dashboard also enables the idle pill explicitly.
+  val alwaysShowWhenIdle: Boolean = true,
+
   val featureNotifications: Boolean = true,
   val featureMedia: Boolean = true,
   val featureCalls: Boolean = true,
@@ -47,6 +49,5 @@ data class CapsuleConfig(
   val featureDownloads: Boolean = true,
   val featureSystemEvents: Boolean = true,
 
-  // Blocked package names for notifications
   val blockedPackages: Set<String> = emptySet()
 )
