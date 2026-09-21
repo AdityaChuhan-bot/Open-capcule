@@ -53,41 +53,26 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Prepare build environment & keystores
+      - name: Validate release signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          # 1. Setup production Release keystore
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding release keystore from secrets..."
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
-          elif [ ! -f release.keystore ]; then
-            echo "Generating production release keystore..."
-            keytool -genkeypair -v \
-              -keystore release.keystore \
-              -alias opencapsule \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass opencapsule \
-              -keypass opencapsule \
-              -dname "CN=OpenCapsule, OU=Mobile, O=OpenCapsule, L=Mountain View, ST=CA, C=US"
-          fi
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" || { echo "::error::KEYSTORE_BASE64 secret is required for a reproducible release signature."; exit 1; }
+          test -n "$STORE_PASSWORD" || { echo "::error::STORE_PASSWORD secret is required."; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "::error::KEY_ALIAS secret is required."; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "::error::KEY_PASSWORD secret is required."; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 --decode > release.keystore
+          test -s release.keystore
 
-          # 2. Restore or create debug keystore
-          if [ -f debug.keystore.base64 ] && [ ! -f debug.keystore ]; then
-            echo "Decoding debug.keystore from base64..."
-            base64 -d debug.keystore.base64 > debug.keystore
-          elif [ ! -f debug.keystore ]; then
-            echo "Generating fallback debug.keystore..."
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
-
-          # 3. Ensure .env exists to satisfy secrets gradle plugin
+      - name: Prepare build environment
+        run: |
+          set -euo pipefail
           if [ ! -f .env ]; then
-            if [ -f .env.example ]; then
-              cp .env.example .env
-            else
-              touch .env
-            fi
+            if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
           fi
 
       - name: Run Play Protect privacy verification & local unit tests
