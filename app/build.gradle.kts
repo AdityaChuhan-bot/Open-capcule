@@ -59,9 +59,6 @@ android {
         keyPassword = System.getenv("KEY_PASSWORD") ?: error("KEY_PASSWORD is required for release builds")
       } else {
         throw GradleException("Release signing keystore is required. Configure KEYSTORE_PATH or GitHub Actions signing secrets.")
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
       }
       enableV1Signing = true
       enableV2Signing = true
