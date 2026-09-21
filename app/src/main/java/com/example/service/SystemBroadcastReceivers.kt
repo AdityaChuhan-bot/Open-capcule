@@ -13,10 +13,11 @@ import com.example.core.CapsuleManager
 import com.example.model.CapsuleEvent
 
 /**
- * Public broadcast receiver manager for battery state, wired/wireless audio plug events,
- * and download completion events.
+ * System event bridge owned by the foreground overlay service.
  *
- * All processing is completely local and event-driven.
+ * The receiver is only registered while the user-enabled overlay service is alive.
+ * It is exported because Android's highly privileged Bluetooth system process can be
+ * a distinct UID; Android documents RECEIVER_EXPORTED for that class of system broadcasts.
  */
 class SystemEventsRegistrar(private val context: Context) {
 
@@ -24,24 +25,14 @@ class SystemEventsRegistrar(private val context: Context) {
     override fun onReceive(ctx: Context?, intent: Intent?) {
       if (intent == null) return
       when (intent.action) {
-        IntentActionBatteryChanged, Intent.ACTION_POWER_CONNECTED, Intent.ACTION_POWER_DISCONNECTED -> {
-          handleBattery(intent)
-        }
-        Intent.ACTION_HEADSET_PLUG -> {
-          handleHeadset(intent)
-        }
-        BluetoothDevice.ACTION_ACL_CONNECTED -> {
-          handleBluetooth(intent, isConnected = true)
-        }
-        BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-          handleBluetooth(intent, isConnected = false)
-        }
-        DownloadManager.ACTION_DOWNLOAD_COMPLETE -> {
-          handleDownload(intent)
-        }
-        AudioManager.RINGER_MODE_CHANGED_ACTION -> {
-          handleRinger(intent)
-        }
+        Intent.ACTION_BATTERY_CHANGED,
+        Intent.ACTION_POWER_CONNECTED,
+        Intent.ACTION_POWER_DISCONNECTED -> handleBattery(intent)
+        Intent.ACTION_HEADSET_PLUG -> handleHeadset(intent)
+        BluetoothDevice.ACTION_ACL_CONNECTED -> handleBluetooth(intent, true)
+        BluetoothDevice.ACTION_ACL_DISCONNECTED -> handleBluetooth(intent, false)
+        DownloadManager.ACTION_DOWNLOAD_COMPLETE -> handleDownload(intent)
+        AudioManager.RINGER_MODE_CHANGED_ACTION -> handleRinger(intent)
       }
     }
   }
@@ -57,6 +48,7 @@ class SystemEventsRegistrar(private val context: Context) {
       addAction(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
       addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
     }
+
     ContextCompat.registerReceiver(
       context,
       receiver,
@@ -68,7 +60,8 @@ class SystemEventsRegistrar(private val context: Context) {
   fun unregister() {
     try {
       context.unregisterReceiver(receiver)
-    } catch (_: Exception) {}
+    } catch (_: Exception) {
+    }
   }
 
   private fun handleBattery(intent: Intent) {
@@ -97,17 +90,15 @@ class SystemEventsRegistrar(private val context: Context) {
   }
 
   private fun handleHeadset(intent: Intent) {
-    val state = intent.getIntExtra("state", -1)
+    if (intent.getIntExtra("state", -1) != 1) return
     val name = intent.getStringExtra("name") ?: "Wired Headset"
-    if (state == 1) {
-      CapsuleManager.postEvent(
-        CapsuleEvent.Bluetooth(
-          deviceName = name,
-          isConnected = true,
-          isHeadset = true
-        )
+    CapsuleManager.postEvent(
+      CapsuleEvent.Bluetooth(
+        deviceName = name,
+        isConnected = true,
+        isHeadset = true
       )
-    }
+    )
   }
 
   private fun handleBluetooth(intent: Intent, isConnected: Boolean) {
@@ -117,7 +108,7 @@ class SystemEventsRegistrar(private val context: Context) {
       @Suppress("DEPRECATION")
       intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
     }
-    // We intentionally avoid scanning or querying protected bluetooth identities
+
     val deviceName = try {
       device?.name ?: "Bluetooth Audio"
     } catch (_: SecurityException) {
@@ -148,16 +139,15 @@ class SystemEventsRegistrar(private val context: Context) {
   }
 
   private fun handleRinger(intent: Intent) {
-    val mode = intent.getIntExtra(AudioManager.EXTRA_RINGER_MODE, AudioManager.RINGER_MODE_NORMAL)
+    val mode = intent.getIntExtra(
+      AudioManager.EXTRA_RINGER_MODE,
+      AudioManager.RINGER_MODE_NORMAL
+    )
     val ringerMode = when (mode) {
       AudioManager.RINGER_MODE_SILENT -> CapsuleEvent.RingerMode.SILENT
       AudioManager.RINGER_MODE_VIBRATE -> CapsuleEvent.RingerMode.VIBRATE
       else -> CapsuleEvent.RingerMode.NORMAL
     }
     CapsuleManager.postEvent(CapsuleEvent.Ringer(mode = ringerMode))
-  }
-
-  companion object {
-    private const val IntentActionBatteryChanged = Intent.ACTION_BATTERY_CHANGED
   }
 }
