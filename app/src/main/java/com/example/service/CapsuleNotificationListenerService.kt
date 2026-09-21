@@ -41,6 +41,7 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     activeMediaController?.unregisterCallback(mediaCallback)
     activeMediaController = controllers?.firstOrNull()
     activeMediaController?.registerCallback(mediaCallback)
+    MediaControlBridge.attach(activeMediaController)
     updateMediaFromController(activeMediaController)
   }
 
@@ -63,12 +64,13 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     super.onListenerDisconnected()
     try {
       activeMediaController?.unregisterCallback(mediaCallback)
+      MediaControlBridge.detach(activeMediaController)
       mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionsChangedListener)
     } catch (_: Exception) {}
   }
 
   override fun onNotificationPosted(sbn: StatusBarNotification?) {
-    if (sbn == null || sbn.isOngoing) return
+    if (sbn == null) return
     val config = CapsuleManager.config.value
     if (!config.featureNotifications) return
 
@@ -106,6 +108,9 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     )
 
     CapsuleManager.postEvent(event)
+    if (config.consumeNotifications && sbn.packageName != packageName) {
+      try { cancelNotification(sbn.key) } catch (_: SecurityException) { }
+    }
   }
 
   override fun onNotificationRemoved(sbn: StatusBarNotification?) {
