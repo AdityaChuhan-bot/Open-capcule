@@ -54,11 +54,11 @@ android {
       val releaseKeystore = if (!customPath.isNullOrEmpty()) file(customPath) else file("${rootDir}/release.keystore")
       if (releaseKeystore.exists()) {
         storeFile = releaseKeystore
-        storePassword = System.getenv("STORE_PASSWORD") ?: "opencapsule"
-        keyAlias = System.getenv("KEY_ALIAS") ?: "opencapsule"
-        keyPassword = System.getenv("KEY_PASSWORD") ?: "opencapsule"
+        storePassword = System.getenv("STORE_PASSWORD") ?: error("STORE_PASSWORD is required for release builds")
+        keyAlias = System.getenv("KEY_ALIAS") ?: error("KEY_ALIAS is required for release builds")
+        keyPassword = System.getenv("KEY_PASSWORD") ?: error("KEY_PASSWORD is required for release builds")
       } else {
-        storeFile = file("${rootDir}/debug.keystore")
+        throw GradleException("Release signing keystore is required. Configure KEYSTORE_PATH or GitHub Actions signing secrets.")
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"
