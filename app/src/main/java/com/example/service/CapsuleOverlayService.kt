@@ -18,7 +18,6 @@ import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
-import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -43,13 +42,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Legitimate foreground service rendering the OpenCapsule Dynamic Island window above user apps.
+ * Long-lived foreground service responsible for the actual floating capsule window.
  *
- * Security & Policy:
- * - Minimum required permission: SYSTEM_ALERT_WINDOW.
- * - Non-deceptive: Transparent, minimal, non-blocking window positioned around the camera notch.
- * - Foreground notification visible at all times with one-tap Stop action.
- * - Immediately destroyed if overlay permission is revoked.
+ * The Activity is only the configuration UI. The ComposeView below remains attached to
+ * WindowManager while this service is alive, so leaving the Activity does not remove the
+ * idle capsule or its event UI.
  */
 class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
 
@@ -87,6 +84,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       initOverlayView()
     } else {
       stopSelf()
+      return
     }
 
     lifecycleRegistry.currentState = Lifecycle.State.RESUMED
@@ -102,8 +100,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         description = getString(R.string.overlay_notification_text)
         setShowBadge(false)
       }
-      val manager = getSystemService(NotificationManager::class.java)
-      manager?.createNotificationChannel(channel)
+      getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
   }
 
@@ -112,28 +109,33 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       action = ACTION_STOP
     }
     val stopPendingIntent = PendingIntent.getService(
-      this, 0, stopIntent,
+      this,
+      0,
+      stopIntent,
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    val openAppIntent = Intent(this, MainActivity::class.java)
     val openAppPendingIntent = PendingIntent.getActivity(
-      this, 0, openAppIntent,
+      this,
+      0,
+      Intent(this, MainActivity::class.java),
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+    val notification: Notification = Notification.Builder(this, CHANNEL_ID)
       .setContentTitle(getString(R.string.overlay_notification_title))
       .setContentText(getString(R.string.overlay_notification_text))
       .setSmallIcon(R.drawable.ic_stat_capsule)
       .setContentIntent(openAppPendingIntent)
       .addAction(
-        android.R.drawable.ic_menu_close_clear_cancel,
-        getString(R.string.overlay_notification_stop),
-        stopPendingIntent
+        Notification.Action.Builder(
+          android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel),
+          getString(R.string.overlay_notification_stop),
+          stopPendingIntent
+        ).build()
       )
       .setOngoing(true)
-      .setPriority(NotificationCompat.PRIORITY_LOW)
+      .setCategory(Notification.CATEGORY_SERVICE)
       .build()
 
     try {
@@ -146,43 +148,84 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       } else {
         startForeground(NOTIFICATION_ID, notification)
       }
-      Log.d(TAG, "Foreground service started with notification")
     } catch (e: Exception) {
-      Log.e(TAG, "Error starting foreground service notification", e)
+      Log.e(TAG, "Unable to promote overlay service to foreground", e)
+      stopSelf()
     }
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     if (intent?.action == ACTION_STOP) {
+      CapsuleManager.updateConfig { it.copy(isOverlayEnabled = false) }
       stopSelf()
       return START_NOT_STICKY
     }
     return START_STICKY
   }
 
-  private fun initOverlayView() {
-    windowManager = getSystemService(WINDOW_SERVICE) as? WindowManager
-    val density = resources.displayMetrics.density
+  private fun calculateInitialY(density: Float): Int {
+    val configuredOffset = CapsuleManager.config.value.offsetY
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+      return (configuredOffset * density).toInt()
+    }
 
-    val initialConfig = CapsuleManager.config.value
-    val gravity = when (initialConfig.position) {
+    val metrics = windowManager?.currentWindowMetrics ?: return (configuredOffset * density).toInt()
+    val cutout = metrics.windowInsets.displayCutout
+    val topCutout = cutout?.boundingRects?.filter { it.width() > 0 && it.height() > 0 }
+      ?.minByOrNull { it.top }
+
+    if (topCutout != null) {
+      // Position the capsule close to the actual camera cutout instead of guessing a
+      // device-specific status-bar coordinate. The user offset remains an additional adjustment.
+      val centerY = topCutout.centerY()
+      val collapsedHeightPx = (CapsuleManager.config.value.collapsedHeightDp * density).toInt()
+      val desiredTop = centerY - collapsedHeightPx / 2
+      return (desiredTop + configuredOffset * density).toInt().coerceAtLeast(0)
+    }
+
+    return (configuredOffset * density).toInt()
+  }
+
+  private fun resolveHorizontalPosition(density: Float): Pair<Int, Int> {
+    val config = CapsuleManager.config.value
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      val metrics = windowManager?.currentWindowMetrics
+      val cutout = metrics?.windowInsets?.displayCutout
+      val topCutout = cutout?.boundingRects?.filter { it.width() > 0 && it.height() > 0 }
+        ?.minByOrNull { it.top }
+      if (topCutout != null && config.position == CapsulePosition.CENTER) {
+        // Gravity.CENTER_HORIZONTAL already centers the WRAP_CONTENT window, so no X offset is needed.
+        return Gravity.TOP or Gravity.CENTER_HORIZONTAL to (config.offsetX * density).toInt()
+      }
+    }
+
+    val gravity = when (config.position) {
       CapsulePosition.LEFT -> Gravity.TOP or Gravity.START
       CapsulePosition.RIGHT -> Gravity.TOP or Gravity.END
       CapsulePosition.CENTER -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
     }
+    return gravity to (config.offsetX * density).toInt()
+  }
+
+  private fun initOverlayView() {
+    windowManager = getSystemService(WINDOW_SERVICE) as? WindowManager
+    val density = resources.displayMetrics.density
+    val (gravity, x) = resolveHorizontalPosition(density)
 
     val params = WindowManager.LayoutParams(
       WindowManager.LayoutParams.WRAP_CONTENT,
       WindowManager.LayoutParams.WRAP_CONTENT,
       WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
       WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
       PixelFormat.TRANSLUCENT
     ).apply {
       this.gravity = gravity
-      this.x = (initialConfig.offsetX * density).toInt()
-      this.y = (initialConfig.offsetY * density).toInt()
+      this.x = x
+      this.y = calculateInitialY(density)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+      }
     }
     windowParams = params
 
@@ -197,38 +240,43 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             val isExpanded by CapsuleManager.isExpanded.collectAsState()
             val config by CapsuleManager.config.collectAsState()
 
-            if (activeEvent != null || config.alwaysShowWhenIdle) {
-              OpenCapsuleDynamicView(
-                event = activeEvent,
-                isExpanded = isExpanded,
-                config = config,
-                onToggleExpand = { CapsuleManager.toggleExpand() },
-                onCollapse = { CapsuleManager.collapseCapsule() }
-              )
-            }
+            // IMPORTANT: Always keep the root capsule composable attached while the
+            // service is running. The previous implementation only composed it when
+            // an event existed or alwaysShowWhenIdle was manually enabled, which made
+            // the Dynamic Island disappear in the idle state.
+            OpenCapsuleDynamicView(
+              event = activeEvent,
+              isExpanded = isExpanded,
+              config = config,
+              onToggleExpand = { CapsuleManager.toggleExpand() },
+              onCollapse = { CapsuleManager.collapseCapsule() }
+            )
           }
         }
       }
       composeView = view
-
       windowManager?.addView(view, params)
-      Log.d(TAG, "Overlay ComposeView successfully attached to WindowManager")
     } catch (e: Exception) {
       Log.e(TAG, "Failed to initialize overlay ComposeView", e)
+      stopSelf()
+      return
     }
 
-    // Listen to config changes and update window position
     serviceScope.launch {
       CapsuleManager.config.collect { cfg ->
         val currentParams = windowParams ?: return@collect
-        val g = when (cfg.position) {
+        val (newGravity, newX) = resolveHorizontalPosition(density)
+        currentParams.gravity = when (cfg.position) {
           CapsulePosition.LEFT -> Gravity.TOP or Gravity.START
           CapsulePosition.RIGHT -> Gravity.TOP or Gravity.END
-          CapsulePosition.CENTER -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
+          CapsulePosition.CENTER -> newGravity
         }
-        currentParams.gravity = g
-        currentParams.x = (cfg.offsetX * density).toInt()
-        currentParams.y = (cfg.offsetY * density).toInt()
+        currentParams.x = if (cfg.position == CapsulePosition.CENTER) {
+          (cfg.offsetX * density).toInt()
+        } else {
+          newX
+        }
+        currentParams.y = calculateInitialY(density)
         try {
           composeView?.let { windowManager?.updateViewLayout(it, currentParams) }
         } catch (e: Exception) {
@@ -238,18 +286,34 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     }
   }
 
+  override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+    super.onConfigurationChanged(newConfig)
+    val density = resources.displayMetrics.density
+    val params = windowParams ?: return
+    val (gravity, x) = resolveHorizontalPosition(density)
+    params.gravity = gravity
+    params.x = x
+    params.y = calculateInitialY(density)
+    try {
+      composeView?.let { windowManager?.updateViewLayout(it, params) }
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to reposition capsule after configuration change", e)
+    }
+  }
+
   override fun onDestroy() {
-    super.onDestroy()
     lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-    appViewModelStore.clear()
-    serviceScope.cancel()
     systemEventsRegistrar?.unregister()
+    serviceScope.cancel()
+    appViewModelStore.clear()
     try {
       composeView?.let { windowManager?.removeViewImmediate(it) }
     } catch (e: Exception) {
       Log.e(TAG, "Error removing overlay view", e)
     }
     composeView = null
+    windowParams = null
+    super.onDestroy()
   }
 
   companion object {
@@ -259,19 +323,27 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     const val ACTION_STOP = "com.example.ACTION_STOP_CAPSULE_OVERLAY"
 
     fun startService(context: Context) {
+      if (!Settings.canDrawOverlays(context)) return
       val intent = Intent(context, CapsuleOverlayService::class.java)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-      } else {
-        context.startService(intent)
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          context.startForegroundService(intent)
+        } else {
+          context.startService(intent)
+        }
+      } catch (e: RuntimeException) {
+        Log.e(TAG, "Could not start overlay service", e)
       }
     }
 
     fun stopService(context: Context) {
-      val intent = Intent(context, CapsuleOverlayService::class.java).apply {
-        action = ACTION_STOP
+      try {
+        context.startService(Intent(context, CapsuleOverlayService::class.java).apply {
+          action = ACTION_STOP
+        })
+      } catch (_: Exception) {
+        context.stopService(Intent(context, CapsuleOverlayService::class.java))
       }
-      context.startService(intent)
     }
   }
 }
