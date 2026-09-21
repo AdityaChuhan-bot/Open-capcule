@@ -240,17 +240,17 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             val isExpanded by CapsuleManager.isExpanded.collectAsState()
             val config by CapsuleManager.config.collectAsState()
 
-            // IMPORTANT: Always keep the root capsule composable attached while the
-            // service is running. The previous implementation only composed it when
-            // an event existed or alwaysShowWhenIdle was manually enabled, which made
-            // the Dynamic Island disappear in the idle state.
-            OpenCapsuleDynamicView(
-              event = activeEvent,
-              isExpanded = isExpanded,
-              config = config,
-              onToggleExpand = { CapsuleManager.toggleExpand() },
-              onCollapse = { CapsuleManager.collapseCapsule() }
-            )
+            // Keep the idle capsule composed whenever the user has enabled
+            // "Always Show Idle Pill"; transient events are also composed while active.
+            if (activeEvent != null || config.alwaysShowWhenIdle) {
+              OpenCapsuleDynamicView(
+                event = activeEvent,
+                isExpanded = isExpanded,
+                config = config,
+                onToggleExpand = { CapsuleManager.toggleExpand() },
+                onCollapse = { CapsuleManager.collapseCapsule() }
+              )
+            }
           }
         }
       }
