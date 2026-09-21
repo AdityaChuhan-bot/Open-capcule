@@ -34,6 +34,7 @@ data class CapsuleConfig(
   val animationSpeed: AnimationSpeed = AnimationSpeed.NORMAL,
   val themeMode: CapsuleThemeMode = CapsuleThemeMode.DYNAMIC_MATERIAL_YOU,
   val notificationPreviewsEnabled: Boolean = true,
+  val consumeNotifications: Boolean = true,
   val autoCollapseTimeoutSeconds: Int = 5,
 
   // The overlay service owns the persistent idle state. This setting remains user-configurable,
