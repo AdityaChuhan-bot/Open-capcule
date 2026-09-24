@@ -103,34 +103,32 @@ jobs:
           ./gradlew :app:testDebugUnitTest --stacktrace || echo "::warning::Unit tests completed with warnings. Continuing APK compilation."
 
       - name: Build Release & Debug APKs
-        run: ./gradlew :app:assembleRelease :app:assembleDebug --stacktrace
+        run: ./gradlew :app:assembleFullRelease :app:assembleCoreRelease :app:assembleFullDebug --stacktrace
 
       - name: Package & Prepare Release Artifacts
         id: package_apk
         run: |
           mkdir -p release-artifacts
           
-          # Prioritize production signed release APK
-          RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          DEBUG_APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          # Explicitly package the full-feature and notification-free core variants.
+          FULL_RELEASE_APK=$(find app/build/outputs/apk/full/release -name "*.apk" | head -n 1)
+          CORE_RELEASE_APK=$(find app/build/outputs/apk/core/release -name "*.apk" | head -n 1)
+          FULL_DEBUG_APK=$(find app/build/outputs/apk/full/debug -name "*.apk" | head -n 1)
 
-          if [ -f "$RELEASE_APK" ]; then
-            echo "Found Release APK: $RELEASE_APK"
-            cp "$RELEASE_APK" release-artifacts/OpenCapsule-release.apk
-            cp "$RELEASE_APK" release-artifacts/OpenCapsule-latest.apk
-            
-            # If tag exists, create a versioned copy
-            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-              TAG_NAME="${GITHUB_REF#refs/tags/}"
-              cp "$RELEASE_APK" "release-artifacts/OpenCapsule-${TAG_NAME}.apk"
-            fi
-          elif [ -f "$DEBUG_APK" ]; then
-            echo "Falling back to Debug APK for latest"
-            cp "$DEBUG_APK" release-artifacts/OpenCapsule-latest.apk
+          test -f "$FULL_RELEASE_APK"
+          test -f "$CORE_RELEASE_APK"
+
+          cp "$FULL_RELEASE_APK" release-artifacts/OpenCapsule-full-release.apk
+          cp "$FULL_RELEASE_APK" release-artifacts/OpenCapsule-latest.apk
+          cp "$CORE_RELEASE_APK" release-artifacts/OpenCapsule-core-diagnostic.apk
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            cp "$FULL_RELEASE_APK" "release-artifacts/OpenCapsule-${TAG_NAME}.apk"
           fi
 
-          if [ -f "$DEBUG_APK" ]; then
-            cp "$DEBUG_APK" release-artifacts/OpenCapsule-debug.apk
+          if [ -f "$FULL_DEBUG_APK" ]; then
+            cp "$FULL_DEBUG_APK" release-artifacts/OpenCapsule-full-debug.apk
           fi
 
           # Compute SHA-256 Checksums
