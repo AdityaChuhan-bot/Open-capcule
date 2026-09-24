@@ -60,6 +60,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.unit.sp
 import com.example.core.CapsuleManager
 import com.example.model.CapsuleConfig
@@ -117,7 +118,9 @@ fun CollapsedCapsuleContent(
       ) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
-          modifier = Modifier.weight(1f, fill = false)
+          modifier = Modifier
+            .weight(1f, fill = false)
+            .widthIn(max = 92.dp)
         ) {
           if (event.albumArt != null) {
             Image(
