@@ -8,7 +8,6 @@
     <!-- Foreground service permissions for persistent overlay operation -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Subtle haptics feedback when interacting with the capsule -->
     <uses-permission android:name="android.permission.VIBRATE" />
