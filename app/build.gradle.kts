@@ -38,6 +38,19 @@ android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
+  flavorDimensions += "capability"
+
+  productFlavors {
+    create("full") {
+      dimension = "capability"
+    }
+    create("core") {
+      dimension = "capability"
+      applicationIdSuffix = ".core"
+      versionNameSuffix = "-core"
+    }
+  }
+
   defaultConfig {
     applicationId = "com.aistudio.opencapsule.kxrvpt"
     minSdk = 26
