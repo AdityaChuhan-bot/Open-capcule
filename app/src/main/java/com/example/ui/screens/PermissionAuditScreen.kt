@@ -118,24 +118,6 @@ fun PermissionAuditScreen(
         }
       ),
       AuditPermissionItem(
-        name = "Post Notifications",
-        technicalId = "android.permission.POST_NOTIFICATIONS",
-        purpose = "Maintains a transparent foreground status notification with a one-tap stop button while overlay is running.",
-        feature = "Service Transparency & Control",
-        isOptional = false,
-        checkGranted = { ctx ->
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-          } else true
-        },
-        openSettingsAction = { ctx ->
-          val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", ctx.packageName, null)
-          }
-          ctx.startActivity(intent)
-        }
-      ),
-      AuditPermissionItem(
         name = "Haptic Vibration",
         technicalId = "android.permission.VIBRATE",
         purpose = "Provides subtle tactile feedback when expanding or tapping controls.",
