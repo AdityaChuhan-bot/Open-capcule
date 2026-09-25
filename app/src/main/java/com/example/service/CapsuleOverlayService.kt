@@ -16,6 +16,11 @@ import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -217,6 +222,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       WindowManager.LayoutParams.WRAP_CONTENT,
       WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
       WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
       PixelFormat.TRANSLUCENT
     ).apply {
@@ -243,13 +249,23 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             // Keep the idle capsule composed whenever the user has enabled
             // "Always Show Idle Pill"; transient events are also composed while active.
             if (activeEvent != null || config.alwaysShowWhenIdle) {
-              OpenCapsuleDynamicView(
-                event = activeEvent,
-                isExpanded = isExpanded,
-                config = config,
-                onToggleExpand = { CapsuleManager.toggleExpand() },
-                onCollapse = { CapsuleManager.collapseCapsule() }
-              )
+              // Give the compact island a larger transparent hit target so it remains
+              // reliably tappable on the launcher/status-bar area without changing its
+              // visual size.
+              Box(
+                modifier = Modifier
+                  .width(if (isExpanded) config.expandedWidthDp.dp + 32.dp else 180.dp)
+                  .height(if (isExpanded) config.expandedHeightDp.dp + 32.dp else 72.dp),
+                contentAlignment = Alignment.Center
+              ) {
+                OpenCapsuleDynamicView(
+                  event = activeEvent,
+                  isExpanded = isExpanded,
+                  config = config,
+                  onToggleExpand = { CapsuleManager.toggleExpand() },
+                  onCollapse = { CapsuleManager.collapseCapsule() }
+                )
+              }
             }
           }
         }
