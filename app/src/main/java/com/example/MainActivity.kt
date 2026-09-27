@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +43,7 @@ import com.example.ui.screens.CustomizationScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.DataSafetyScreen
 import com.example.ui.screens.OnboardingFlow
+import com.example.ui.screens.LauncherHomeScreen
 import com.example.ui.screens.PermissionAuditScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.PrimaryBlue
@@ -82,10 +84,11 @@ fun OpenCapsuleAppRoot() {
           title = {
             Text(
               text = when (selectedTab) {
-                0 -> "OpenCapsule Studio"
-                1 -> "Customization & Notch"
-                2 -> "Permission Audit"
-                3 -> "Data Safety & Policy"
+                0 -> "Home"
+                1 -> "OpenCapsule Studio"
+                2 -> "Customization & Notch"
+                3 -> "Permission Audit"
+                4 -> "Data Safety & Policy"
                 else -> "OpenCapsule"
               },
               fontWeight = FontWeight.Bold,
@@ -106,6 +109,18 @@ fun OpenCapsuleAppRoot() {
           NavigationBarItem(
             selected = selectedTab == 0,
             onClick = { selectedTab = 0 },
+            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+            label = { Text("Home") },
+            colors = NavigationBarItemDefaults.colors(
+              selectedIconColor = Color.Black,
+              indicatorColor = PrimaryBlue
+            ),
+            modifier = Modifier.testTag("nav_item_home")
+          )
+
+          NavigationBarItem(
+            selected = selectedTab == 1,
+            onClick = { selectedTab = 1 },
             icon = { Icon(Icons.Default.Dashboard, contentDescription = "Studio") },
             label = { Text("Studio") },
             colors = NavigationBarItemDefaults.colors(
@@ -116,8 +131,8 @@ fun OpenCapsuleAppRoot() {
           )
 
           NavigationBarItem(
-            selected = selectedTab == 1,
-            onClick = { selectedTab = 1 },
+            selected = selectedTab == 2,
+            onClick = { selectedTab = 2 },
             icon = { Icon(Icons.Default.Tune, contentDescription = "Customize") },
             label = { Text("Customize") },
             colors = NavigationBarItemDefaults.colors(
@@ -128,8 +143,8 @@ fun OpenCapsuleAppRoot() {
           )
 
           NavigationBarItem(
-            selected = selectedTab == 2,
-            onClick = { selectedTab = 2 },
+            selected = selectedTab == 3,
+            onClick = { selectedTab = 3 },
             icon = { Icon(Icons.Default.Security, contentDescription = "Permissions") },
             label = { Text("Permissions") },
             colors = NavigationBarItemDefaults.colors(
@@ -140,8 +155,8 @@ fun OpenCapsuleAppRoot() {
           )
 
           NavigationBarItem(
-            selected = selectedTab == 3,
-            onClick = { selectedTab = 3 },
+            selected = selectedTab == 4,
+            onClick = { selectedTab = 4 },
             icon = { Icon(Icons.Default.Policy, contentDescription = "Safety") },
             label = { Text("Safety") },
             colors = NavigationBarItemDefaults.colors(
@@ -164,15 +179,16 @@ fun OpenCapsuleAppRoot() {
           label = "tab_transition"
         ) { tab ->
           when (tab) {
-            0 -> DashboardScreen(
+            0 -> LauncherHomeScreen()
+            1 -> DashboardScreen(
               config = config,
               activeEvent = activeEvent,
               isExpanded = isExpanded,
               onOpenAudit = { selectedTab = 2 }
             )
-            1 -> CustomizationScreen(config = config)
-            2 -> PermissionAuditScreen()
-            3 -> DataSafetyScreen()
+            2 -> CustomizationScreen(config = config)
+            3 -> PermissionAuditScreen()
+            4 -> DataSafetyScreen()
           }
         }
       }
