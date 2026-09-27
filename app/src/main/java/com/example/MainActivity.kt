@@ -184,7 +184,7 @@ fun OpenCapsuleAppRoot() {
               config = config,
               activeEvent = activeEvent,
               isExpanded = isExpanded,
-              onOpenAudit = { selectedTab = 2 }
+              onOpenAudit = { selectedTab = 3 }
             )
             2 -> CustomizationScreen(config = config)
             3 -> PermissionAuditScreen()
