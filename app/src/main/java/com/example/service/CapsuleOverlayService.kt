@@ -170,49 +170,37 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
   }
 
   private fun calculateInitialY(density: Float): Int {
-    val config = CapsuleManager.config.value
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-      return (config.offsetY * density).toInt()
-    }
-
-    val metrics = windowManager?.currentWindowMetrics
-      ?: return (config.offsetY * density).toInt()
-    val cutout = metrics.windowInsets.displayCutout
-    val screenCenterX = metrics.bounds.centerX()
-    val cameraCutout = cutout?.boundingRects
-      ?.filter { it.width() > 0 && it.height() > 0 }
-      ?.minByOrNull { kotlin.math.abs(it.centerX() - screenCenterX) }
-
-    if (cameraCutout != null && config.position == CapsulePosition.CENTER) {
-      // Center the complete 72dp touch window around the actual front-camera cutout.
-      // Negative Y is intentional for a cutout touching the display's top edge.
-      val touchTargetHeightPx = (72f * density).toInt()
-      return cameraCutout.centerY() - touchTargetHeightPx / 2 +
-        (config.offsetY * density).toInt()
-    }
-
-    return (config.offsetY * density).toInt()
+    // Anchor the island to the display top and let expanded content grow downward.
+    // Centering a tall transparent hit target on the tiny cutout shifted the pill down.
+    return (CapsuleManager.config.value.offsetY * density).toInt()
   }
 
   private fun resolveHorizontalPosition(density: Float): Pair<Int, Int> {
     val config = CapsuleManager.config.value
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      val metrics = windowManager?.currentWindowMetrics
-      val cutout = metrics?.windowInsets?.displayCutout
-      val topCutout = cutout?.boundingRects?.filter { it.width() > 0 && it.height() > 0 }
-        ?.minByOrNull { it.top }
-      if (topCutout != null && config.position == CapsulePosition.CENTER) {
-        // Gravity.CENTER_HORIZONTAL already centers the WRAP_CONTENT window, so no X offset is needed.
-        return Gravity.TOP or Gravity.CENTER_HORIZONTAL to (config.offsetX * density).toInt()
-      }
-    }
-
     val gravity = when (config.position) {
       CapsulePosition.LEFT -> Gravity.TOP or Gravity.START
       CapsulePosition.RIGHT -> Gravity.TOP or Gravity.END
       CapsulePosition.CENTER -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
     }
-    return gravity to (config.offsetX * density).toInt()
+
+    var xOffset = (config.offsetX * density).toInt()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && config.position == CapsulePosition.CENTER) {
+      val metrics = windowManager?.currentWindowMetrics
+      val screenCenterX = metrics?.bounds?.centerX()
+      val cameraCutout = metrics?.windowInsets?.displayCutout?.boundingRects
+        ?.filter { it.width() > 0 && it.height() > 0 }
+        ?.minByOrNull { rect ->
+          kotlin.math.abs(rect.centerX() - (screenCenterX ?: rect.centerX())) +
+            rect.top.coerceAtLeast(0) * 2
+        }
+
+      if (cameraCutout != null && screenCenterX != null) {
+        // Gravity centers the window on the display; compensate for a camera cutout
+        // that is not exactly at the display center.
+        xOffset += cameraCutout.centerX() - screenCenterX
+      }
+    }
+    return gravity to xOffset
   }
 
   private fun initOverlayView() {
@@ -259,7 +247,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
                 modifier = Modifier
                   .width(if (isExpanded) config.expandedWidthDp.dp + 32.dp else 180.dp)
                   .height(if (isExpanded) config.expandedHeightDp.dp + 32.dp else 72.dp),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.TopCenter
               ) {
                 OpenCapsuleDynamicView(
                   event = activeEvent,
@@ -290,11 +278,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
           CapsulePosition.RIGHT -> Gravity.TOP or Gravity.END
           CapsulePosition.CENTER -> newGravity
         }
-        currentParams.x = if (cfg.position == CapsulePosition.CENTER) {
-          (cfg.offsetX * density).toInt()
-        } else {
-          newX
-        }
+        currentParams.x = newX
         currentParams.y = calculateInitialY(density)
         try {
           composeView?.let { windowManager?.updateViewLayout(it, currentParams) }
