@@ -170,26 +170,28 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
   }
 
   private fun calculateInitialY(density: Float): Int {
-    val configuredOffset = CapsuleManager.config.value.offsetY
+    val config = CapsuleManager.config.value
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-      return (configuredOffset * density).toInt()
+      return (config.offsetY * density).toInt()
     }
 
-    val metrics = windowManager?.currentWindowMetrics ?: return (configuredOffset * density).toInt()
+    val metrics = windowManager?.currentWindowMetrics
+      ?: return (config.offsetY * density).toInt()
     val cutout = metrics.windowInsets.displayCutout
-    val topCutout = cutout?.boundingRects?.filter { it.width() > 0 && it.height() > 0 }
-      ?.minByOrNull { it.top }
+    val screenCenterX = metrics.bounds.centerX()
+    val cameraCutout = cutout?.boundingRects
+      ?.filter { it.width() > 0 && it.height() > 0 }
+      ?.minByOrNull { kotlin.math.abs(it.centerX() - screenCenterX) }
 
-    if (topCutout != null) {
-      // Position the capsule close to the actual camera cutout instead of guessing a
-      // device-specific status-bar coordinate. The user offset remains an additional adjustment.
-      val centerY = topCutout.centerY()
-      val collapsedHeightPx = (CapsuleManager.config.value.collapsedHeightDp * density).toInt()
-      val desiredTop = centerY - collapsedHeightPx / 2
-      return (desiredTop + configuredOffset * density).toInt().coerceAtLeast(0)
+    if (cameraCutout != null && config.position == CapsulePosition.CENTER) {
+      // Center the complete 72dp touch window around the actual front-camera cutout.
+      // Negative Y is intentional for a cutout touching the display's top edge.
+      val touchTargetHeightPx = (72f * density).toInt()
+      return cameraCutout.centerY() - touchTargetHeightPx / 2 +
+        (config.offsetY * density).toInt()
     }
 
-    return (configuredOffset * density).toInt()
+    return (config.offsetY * density).toInt()
   }
 
   private fun resolveHorizontalPosition(density: Float): Pair<Int, Int> {
