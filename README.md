@@ -1,148 +1,150 @@
-<div align="center">
+ <div align="center">
 
 # 🌌 OpenCapsule
 
-**Privacy-First Dynamic Island & Contextual Notification Capsule for Android**
+**Android Dynamic Island, launcher, and contextual control hub**
 
-[![Build & Release](https://github.com/OWNER/OpenCapsule/actions/workflows/build-apk.yml/badge.svg)](https://github.com/OWNER/OpenCapsule/actions/workflows/build-apk.yml)
-[![Latest Release](https://img.shields.io/github/v/release/OWNER/OpenCapsule?color=00e5ff&label=Latest%20APK)](https://github.com/OWNER/OpenCapsule/releases/latest)
-[![Android Min SDK](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%2B)-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
-[![Target SDK](https://img.shields.io/badge/Target%20SDK-36-green?logo=android&logoColor=white)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-M3-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Play Protect Offline](https://img.shields.io/badge/Play%20Protect-100%25%20Offline-brightgreen?logo=googleplay&logoColor=white)](PLAY_PROTECT_AUDIT.md)
+[![Build](https://github.com/AdityaChuhan-bot/Open-/actions/workflows/build-apk.yml/badge.svg)](https://github.com/AdityaChuhan-bot/Open-/actions)
+[![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%2B)-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-Android%20Compose-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-<br />
-
-```
-  ┌────────────────────────────────────────────────────────┐
-  │   ●   OpenCapsule   •   Now Playing: Midnight Echo     │
-  └────────────────────────────────────────────────────────┘
-```
-
-*An open-source, non-intrusive floating status capsule that transforms your camera punch-hole into an interactive control center.*
-
-[Download Latest APK](https://github.com/OWNER/OpenCapsule/releases/latest) • [Play Protect Audit](PLAY_PROTECT_AUDIT.md) • [Privacy Policy](PRIVACY.md) • [Report Bug](.github/ISSUE_TEMPLATE/bug_report.md)
+An open-source Android project exploring a camera-cutout-aware Dynamic Island experience, with a dedicated home-launcher entry point and planned control centre and notification hub.
 
 </div>
 
 ---
 
-## ✨ Overview
+## Project status
 
-**OpenCapsule** is an original Android application that brings dynamic contextual notifications to your device's front camera cutout. Built with tactile spring physics and Jetpack Compose, it presents live media playback, active countdown timers, incoming and ongoing phone calls, battery charging states, and audio accessory connections within a compact, fluid status pill.
+**Active development / experimental.** OpenCapsule is being expanded from a floating capsule utility into a launcher-based experience.
 
-Designed from inception for legitimate Google Play distribution with **100% Google Play Protect compliance** and zero data egress.
+- A dedicated launcher activity and initial app-grid home screen have been added.
+- The existing Studio/configuration activity remains separate.
+- A cutout-aware overlay is used for the capsule when shown outside the launcher.
+- Build and device validation are ongoing; behavior may vary by Android version and device.
+- The launcher has not yet been verified as a complete replacement for the stock launcher on every device.
+- Direct APK installation may be blocked by Google Play Protect. A successful CI build does not mean Play Protect will allow installation.
+
+## Current direction
+
+### Launcher home
+
+The launcher entry point is separate from the OpenCapsule Studio screen. The initial home screen includes a clock/date and a grid of launchable apps. OpenCapsule is intended to be selectable as the Android Home app through system default-app settings.
+
+Configurable dock/favorites, app search, real app icons, wallpaper options, and gesture customization remain in development.
+
+### Dynamic Island
+
+The capsule is designed to present compact and expanded contextual content around the front-camera cutout, including:
+
+- Media metadata and playback controls
+- Timer/countdown events
+- Charging and battery state
+- Audio accessory events
+- Supported notification and call-related events
+
+The overlay uses Android's application-overlay window capability when displayed over other apps. Positioning and touch behavior depend on display cutout geometry, system window rules, and OEM implementation; physical-device testing is required.
+
+### Planned integrated modules
+
+- **Control Centre:** app shortcuts and supported system controls/panels.
+- **Notification Hub:** an in-launcher view for notifications made available through Android's notification-listener access.
+- **Launcher customization:** favorites/dock, search, layout and appearance settings.
+
+These modules are planned/in progress and should not be considered complete until implemented and tested.
 
 ---
 
-## 🎯 Key Features
+## Privacy and permissions
 
-| Feature | Description | Android API Used |
+OpenCapsule is designed to process supported events locally. Permission availability and actual behavior should be checked in the installed build and Android settings.
+
+| Permission / access | Why it is used | Notes |
 |---|---|---|
-| 🎵 **Live Media Controller** | Album art, title, artist, live audio wave visualizer, interactive seek progress, previous/play/next controls | `MediaSessionManager` & `MediaController` |
-| ⏱️ **Timers & Stopwatch** | Live countdown animation, instant `+1 Min` button, pause/resume, and reset actions | Local System Timers |
-| 📞 **Call Durations** | Incoming call answering/declining banner and active call elapsed timer | `TelephonyManager` |
-| ⚡ **Battery & Charging** | Real-time indicators for AC Fast Charging, USB standard charging, and low battery | `Intent.ACTION_BATTERY_CHANGED` |
-| 🔔 **Contextual Alerts** | Minimalist notification pills with configurable sensitive content redaction | `NotificationListenerService` |
-| 🎧 **Audio Accessories** | Automatic status banner when Bluetooth headphones or wired earphones connect | System Audio Broadcasts |
-| 🎛️ **Notch Studio & Calibrator** | Real-time simulator test bench with punch-hole presets (Center, Left, Right), X/Y offsets, and size controls | In-App Compose Canvas |
+| Display over other apps (SYSTEM_ALERT_WINDOW) | Shows the capsule above other apps | User must grant overlay access for cross-app display. The launcher can show its own in-screen UI without relying on an overlay. |
+| Notification access (BIND_NOTIFICATION_LISTENER_SERVICE) | Reads supported notification/media events for the capsule and planned hub | Optional and sensitive. Must be explicitly enabled by the user in Android settings. Some system notifications cannot be dismissed or mirrored. |
+| Special-use foreground service | Keeps the overlay service active when enabled | Subject to Android background/foreground-service rules and device behavior. |
+| Vibration (VIBRATE) | Optional haptic feedback | Used only for supported interactions. |
+
+The source manifest is intended to avoid unnecessary network access and accessibility-service usage. Review the current manifest and build output for the exact permissions in a particular APK. No claim of Google Play Protect approval or compliance is made here.
 
 ---
 
-## 🛡️ Privacy & Play Protect Guarantees
+## Installation and setup
 
-OpenCapsule implements a defensive architecture with verifiable privacy safeguards:
+### Install a build
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        OPENCAPSULE ARCHITECTURE                        │
-│                                                                        │
-│  [ Media Sessions ]  [ System Broadcasts ]  [ Notification Listener ] │
-│           │                     │                       │              │
-│           └─────────────────────┼───────────────────────┘              │
-│                                 ▼                                      │
-│                ┌──────────────────────────────────┐                    │
-│                │  Volatile In-Memory Event Stream │                    │
-│                │          (Kotlin StateFlow)      │                    │
-│                └────────────────┬─────────────────┘                    │
-│                                 │                                      │
-│                                 ▼                                      │
-│                ┌──────────────────────────────────┐                    │
-│                │  Jetpack Compose Floating Window │                    │
-│                │  (WindowManager.LayoutParams)    │                    │
-│                └──────────────────────────────────┘                    │
-│                                                                        │
-│   ❌ NO INTERNET PERMISSION   ❌ NO ACCESSIBILITY ABUSE   ❌ NO STORAGE │
-└────────────────────────────────────────────────────────────────────────┘
-```
+1. Open [GitHub Actions](https://github.com/AdityaChuhan-bot/Open-/actions) or [Releases](https://github.com/AdityaChuhan-bot/Open-/releases).
+2. Download an APK artifact/release that matches the build you want.
+3. Install it only if Android permits and you trust the source.
 
-1. **Air-Gapped Operation**: OpenCapsule does **NOT** declare `android.permission.INTERNET`. The app is physically incapable of making network connections or sending telemetry off-device.
-2. **Build-Time Verification**: A dedicated Gradle task (`:app:verifyPlayProtectPrivacy`) fails the build immediately if networking or accessibility service declarations are introduced.
-3. **Volatile In-Memory Processing**: Notification contents and playback metadata exist strictly in volatile memory (`StateFlow`) and are erased when dismissed. No database or disk logs are created.
-4. **No Accessibility Abuse**: Overlays are rendered using standard `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE`.
-5. **Foreground Service Transparency**: An ongoing status notification with a one-tap Stop button provides complete user control.
+**Play Protect:** Some sideloaded builds may be blocked with an “App blocked to protect your device” warning. This differs from an ordinary unknown-developer warning. Do not assume an “Install anyway” option will be available; follow Google's official guidance or use an appropriate distribution/review path. Do not disable device protection to install an unverified build.
+
+### Select OpenCapsule as your Home app
+
+After installing a build that includes the launcher activity:
+
+1. Open Android **Settings**.
+2. Find **Default apps** (wording may vary by Android version).
+3. Open **Home app**.
+4. Select **OpenCapsule**, if it appears.
+
+If it does not appear, the installed build may not include a valid Home activity or may not have installed successfully. The launcher is still under development.
+
+### Enable capsule overlay
+
+To display the capsule over other apps:
+
+1. Open OpenCapsule.
+2. Open the relevant permission/setup screen.
+3. Grant **Display over other apps** when prompted.
+4. Start or enable the capsule service.
+
+The exact menu names may differ by Android version and manufacturer.
+
+### Enable notification features
+
+To receive supported notifications in the capsule, enable OpenCapsule under Android's **Notification access** settings. Notification access is optional and sensitive. Without it, notification-driven features will not work; media or system-event behavior may still be available through other Android APIs.
 
 ---
 
-## 📥 Download & Installation
+## Build from source
 
-### Option 1: Direct APK Download (Recommended)
-1. Go to the [**Latest GitHub Release**](https://github.com/OWNER/OpenCapsule/releases/latest).
-2. Download **`OpenCapsule-latest.apk`** (or `OpenCapsule-release.apk`).
-3. Tap the downloaded file on your Android device to install.
-4. **Google Play Protect Notice**: Because this APK is downloaded directly from GitHub rather than through Google Play Store indexing, Play Protect may prompt: *"Play Protect doesn't recognize this app's developer"*. Simply tap **More details** and select **Install anyway**.
-5. Launch OpenCapsule and follow the onboarding setup.
+Requirements: Android SDK/Android Studio or a compatible Gradle environment, JDK version supported by the project, and Android SDK platforms required by the Gradle configuration.
 
-### Option 2: Build from Source
 ```bash
-# 1. Clone repository
-git clone https://github.com/OWNER/OpenCapsule.git
-cd OpenCapsule
-
-# 2. Grant execute permission
+git clone https://github.com/AdityaChuhan-bot/Open-.git
+cd Open-
 chmod +x gradlew
-
-# 3. Run compliance tests
 ./gradlew :app:testDebugUnitTest
-
-# 4. Assemble release APK
-./gradlew :app:assembleRelease
 ```
-The compiled APK will be at `app/build/outputs/apk/release/app-release.apk`.
+
+If the full and core product flavors are present, build them with:
+
+```bash
+./gradlew :app:assembleFullRelease :app:assembleCoreRelease
+```
+
+The **full** variant is intended to include notification-listener functionality. The **core** diagnostic variant omits the notification listener to help isolate installation/security-warning behavior. Confirm generated artifact names and signing setup from the current CI run.
 
 ---
 
-## 🤖 Automated CI / CD Workflow
+## CI builds
 
-Every commit pushed to `main` (or version tag `v*`) triggers the automated GitHub Actions workflow (`.github/workflows/build-apk.yml`):
-- Sets up JDK 17 & Gradle 9.3.1.
-- Executes local Play Protect verification and JVM unit tests.
-- Compiles production release-signed and debug APKs using Android v1/v2/v3/v4 signature schemes.
-- Generates SHA-256 checksums for download integrity.
-- **Automatically publishes the latest APK directly to GitHub Releases** for immediate 1-click download.
+GitHub Actions configuration is maintained in the workflow file at .github/workflows/build-apk.yml.
 
----
+Builds can run tests, assemble configured APK variants, and upload artifacts. A green workflow confirms that configured CI tasks completed; it does **not** guarantee installation on every device, Play Protect acceptance, Google Play approval, or physical-device functionality.
 
-## 📱 Permissions Breakdown
-
-| Permission | Purpose | Status |
-|---|---|---|
-| `SYSTEM_ALERT_WINDOW` | Renders the capsule overlay window around your camera cutout | Required |
-| `BIND_NOTIFICATION_LISTENER_SERVICE` | Displays active media playback controls and selected notification alerts | Optional |
-| `FOREGROUND_SERVICE_SPECIAL_USE` | Keeps the overlay active with an ongoing status notification | Required |
-| `POST_NOTIFICATIONS` | Displays the foreground service status notification with stop action | Required |
-| `VIBRATE` | Provides subtle haptic feedback during interactive expansions | Required |
+- [View workflow runs](https://github.com/AdityaChuhan-bot/Open-/actions)
+- [View releases](https://github.com/AdityaChuhan-bot/Open-/releases)
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on code style, commit conventions, and our PR workflow.
+Contributions are welcome. Please review CONTRIBUTING.md, open an issue for bugs or feature proposals, and include Android version/device details when reporting launcher, overlay, or permission behavior.
 
----
+## License
 
-## 📄 License
-
-This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+Licensed under the Apache License, Version 2.0. See LICENSE.
