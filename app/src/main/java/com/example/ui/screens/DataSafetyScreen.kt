@@ -137,6 +137,9 @@ OpenCapsule contains no advertising SDKs, no behavioral tracking frameworks, no 
 
 5. User Control & Revocation
 You can disable individual features, customize sensitive notification redaction, or stop the overlay service at any time from the app settings or Android System Settings.
+
+6. 100% Free & Zero External APIs
+OpenCapsule is entirely free, open-source, and offline. There are no paid tiers, no subscription locks, no in-app purchases, and no external API keys or cloud services required.
           """.trimIndent(),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -23,6 +23,7 @@ enum class CapsuleThemeMode {
 data class CapsuleConfig(
   val isOverlayEnabled: Boolean = false,
   val isOnboardingCompleted: Boolean = false,
+  val autoAlignCutout: Boolean = true,
   val position: CapsulePosition = CapsulePosition.CENTER,
   val offsetX: Int = 0,
   val offsetY: Int = 12,

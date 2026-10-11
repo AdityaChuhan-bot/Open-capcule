@@ -160,18 +160,35 @@ fun DashboardScreen(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
           )
-          Box(
-            modifier = Modifier
-              .clip(RoundedCornerShape(8.dp))
-              .background(PrimaryBlue.copy(alpha = 0.15f))
-              .padding(horizontal = 8.dp, vertical = 4.dp)
-          ) {
-            Text(
-              text = if (isExpanded) "Expanded" else "Collapsed",
-              color = PrimaryBlue,
-              fontSize = 11.sp,
-              fontWeight = FontWeight.Bold
-            )
+          Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (config.autoAlignCutout) {
+              Box(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(8.dp))
+                  .background(Color(0xFF10B981).copy(alpha = 0.15f))
+                  .padding(horizontal = 8.dp, vertical = 4.dp)
+              ) {
+                Text(
+                  text = "Auto-Cutout",
+                  color = Color(0xFF10B981),
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold
+                )
+              }
+            }
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(PrimaryBlue.copy(alpha = 0.15f))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+              Text(
+                text = if (isExpanded) "Expanded" else "Collapsed",
+                color = PrimaryBlue,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+              )
+            }
           }
         }
 
@@ -193,7 +210,8 @@ fun DashboardScreen(
           contentAlignment = Alignment.TopCenter
         ) {
           // Simulated camera punch-hole cutout
-          val cutoutAlignment = when (config.position) {
+          val effectivePosition = if (config.autoAlignCutout) CapsulePosition.CENTER else config.position
+          val cutoutAlignment = when (effectivePosition) {
             CapsulePosition.CENTER -> Alignment.TopCenter
             CapsulePosition.LEFT -> Alignment.TopStart
             CapsulePosition.RIGHT -> Alignment.TopEnd
@@ -202,8 +220,8 @@ fun DashboardScreen(
             modifier = Modifier
               .padding(
                 top = 10.dp,
-                start = if (config.position == CapsulePosition.LEFT) 32.dp else 0.dp,
-                end = if (config.position == CapsulePosition.RIGHT) 32.dp else 0.dp
+                start = if (effectivePosition == CapsulePosition.LEFT) 32.dp else 0.dp,
+                end = if (effectivePosition == CapsulePosition.RIGHT) 32.dp else 0.dp
               )
               .align(cutoutAlignment)
           ) {
@@ -220,7 +238,11 @@ fun DashboardScreen(
           // The Dynamic Capsule itself
           Box(
             modifier = Modifier
-              .padding(top = config.offsetY.dp)
+              .padding(
+                top = config.offsetY.dp,
+                start = if (effectivePosition == CapsulePosition.LEFT) config.offsetX.dp else 0.dp,
+                end = if (effectivePosition == CapsulePosition.RIGHT) config.offsetX.dp else 0.dp
+              )
               .align(cutoutAlignment)
           ) {
             OpenCapsuleDynamicView(

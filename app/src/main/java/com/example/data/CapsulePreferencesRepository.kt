@@ -23,6 +23,7 @@ class CapsulePreferencesRepository(private val context: Context) {
   private object Keys {
     val IS_OVERLAY_ENABLED = booleanPreferencesKey("is_overlay_enabled")
     val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
+    val AUTO_ALIGN_CUTOUT = booleanPreferencesKey("auto_align_cutout")
     val POSITION = stringPreferencesKey("position")
     val OFFSET_X = intPreferencesKey("offset_x")
     val OFFSET_Y = intPreferencesKey("offset_y")
@@ -53,6 +54,7 @@ class CapsulePreferencesRepository(private val context: Context) {
     CapsuleConfig(
       isOverlayEnabled = prefs[Keys.IS_OVERLAY_ENABLED] ?: false,
       isOnboardingCompleted = prefs[Keys.IS_ONBOARDING_COMPLETED] ?: false,
+      autoAlignCutout = prefs[Keys.AUTO_ALIGN_CUTOUT] ?: true,
       position = try {
         CapsulePosition.valueOf(prefs[Keys.POSITION] ?: CapsulePosition.CENTER.name)
       } catch (e: Exception) {
@@ -97,6 +99,7 @@ class CapsulePreferencesRepository(private val context: Context) {
       val current = CapsuleConfig(
         isOverlayEnabled = prefs[Keys.IS_OVERLAY_ENABLED] ?: false,
         isOnboardingCompleted = prefs[Keys.IS_ONBOARDING_COMPLETED] ?: false,
+        autoAlignCutout = prefs[Keys.AUTO_ALIGN_CUTOUT] ?: true,
         position = try {
           CapsulePosition.valueOf(prefs[Keys.POSITION] ?: CapsulePosition.CENTER.name)
         } catch (e: Exception) {
@@ -139,6 +142,7 @@ class CapsulePreferencesRepository(private val context: Context) {
 
       prefs[Keys.IS_OVERLAY_ENABLED] = newConfig.isOverlayEnabled
       prefs[Keys.IS_ONBOARDING_COMPLETED] = newConfig.isOnboardingCompleted
+      prefs[Keys.AUTO_ALIGN_CUTOUT] = newConfig.autoAlignCutout
       prefs[Keys.POSITION] = newConfig.position.name
       prefs[Keys.OFFSET_X] = newConfig.offsetX
       prefs[Keys.OFFSET_Y] = newConfig.offsetY

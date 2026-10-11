@@ -72,26 +72,51 @@ fun CustomizationScreen(
 
         Row(
           modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          FilterChip(
-            selected = config.position == CapsulePosition.CENTER,
-            onClick = { CapsuleManager.updateConfig { it.copy(position = CapsulePosition.CENTER) } },
-            label = { Text("Center") },
-            modifier = Modifier.weight(1f)
+          Column(modifier = Modifier.weight(1f)) {
+            Text("Auto-detect Camera Cutout", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+              "Automatically positions capsule around physical camera notch with fallback.",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+          Switch(
+            checked = config.autoAlignCutout,
+            onCheckedChange = { isChecked ->
+              CapsuleManager.updateConfig { it.copy(autoAlignCutout = isChecked) }
+            },
+            colors = SwitchDefaults.colors(checkedThumbColor = PrimaryBlue),
+            modifier = Modifier.testTag("switch_auto_cutout")
           )
-          FilterChip(
-            selected = config.position == CapsulePosition.LEFT,
-            onClick = { CapsuleManager.updateConfig { it.copy(position = CapsulePosition.LEFT) } },
-            label = { Text("Left Hole") },
-            modifier = Modifier.weight(1f)
-          )
-          FilterChip(
-            selected = config.position == CapsulePosition.RIGHT,
-            onClick = { CapsuleManager.updateConfig { it.copy(position = CapsulePosition.RIGHT) } },
-            label = { Text("Right Hole") },
-            modifier = Modifier.weight(1f)
-          )
+        }
+
+        if (!config.autoAlignCutout) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            FilterChip(
+              selected = config.position == CapsulePosition.CENTER,
+              onClick = { CapsuleManager.updateConfig { it.copy(position = CapsulePosition.CENTER) } },
+              label = { Text("Center") },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.position == CapsulePosition.LEFT,
+              onClick = { CapsuleManager.updateConfig { it.copy(position = CapsulePosition.LEFT) } },
+              label = { Text("Left Hole") },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.position == CapsulePosition.RIGHT,
+              onClick = { CapsuleManager.updateConfig { it.copy(position = CapsulePosition.RIGHT) } },
+              label = { Text("Right Hole") },
+              modifier = Modifier.weight(1f)
+            )
+          }
         }
 
         // Horizontal Offset Slider

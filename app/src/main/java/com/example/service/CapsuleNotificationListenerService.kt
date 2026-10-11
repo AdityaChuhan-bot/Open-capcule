@@ -9,6 +9,7 @@ import android.media.session.PlaybackState
 import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 import com.example.core.CapsuleManager
 import com.example.model.CapsuleEvent
 
@@ -41,8 +42,45 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     activeMediaController?.unregisterCallback(mediaCallback)
     activeMediaController = controllers?.firstOrNull()
     activeMediaController?.registerCallback(mediaCallback)
-    MediaControlBridge.attach(activeMediaController)
+    registerMediaActionHandler(activeMediaController)
     updateMediaFromController(activeMediaController)
+  }
+
+  private fun registerMediaActionHandler(controller: MediaController?) {
+    if (controller != null) {
+      CapsuleManager.mediaActionHandler = object : CapsuleManager.MediaActionHandler {
+        override fun onPlayPause() {
+          try {
+            val pbState = controller.playbackState?.state
+            if (pbState == PlaybackState.STATE_PLAYING) {
+              controller.transportControls?.pause()
+            } else {
+              controller.transportControls?.play()
+            }
+          } catch (e: Exception) {
+            Log.e(TAG, "Error toggling media play/pause", e)
+          }
+        }
+
+        override fun onSkipToNext() {
+          try {
+            controller.transportControls?.skipToNext()
+          } catch (e: Exception) {
+            Log.e(TAG, "Error skipping to next track", e)
+          }
+        }
+
+        override fun onSkipToPrevious() {
+          try {
+            controller.transportControls?.skipToPrevious()
+          } catch (e: Exception) {
+            Log.e(TAG, "Error skipping to previous track", e)
+          }
+        }
+      }
+    } else {
+      CapsuleManager.mediaActionHandler = null
+    }
   }
 
   override fun onListenerConnected() {
@@ -54,6 +92,7 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
       activeMediaController = sessions?.firstOrNull()
       activeMediaController?.registerCallback(mediaCallback)
       mediaSessionManager?.addOnActiveSessionsChangedListener(sessionsChangedListener, component)
+      registerMediaActionHandler(activeMediaController)
       updateMediaFromController(activeMediaController)
     } catch (_: SecurityException) {
       // Permission not yet granted or restricted
@@ -64,13 +103,18 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     super.onListenerDisconnected()
     try {
       activeMediaController?.unregisterCallback(mediaCallback)
-      MediaControlBridge.detach(activeMediaController)
       mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionsChangedListener)
+      registerMediaActionHandler(null)
     } catch (_: Exception) {}
   }
 
+  override fun onDestroy() {
+    super.onDestroy()
+    registerMediaActionHandler(null)
+  }
+
   override fun onNotificationPosted(sbn: StatusBarNotification?) {
-    if (sbn == null) return
+    if (sbn == null || sbn.isOngoing) return
     val config = CapsuleManager.config.value
     if (!config.featureNotifications) return
 
@@ -108,9 +152,6 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     )
 
     CapsuleManager.postEvent(event)
-    if (config.consumeNotifications && sbn.packageName != packageName) {
-      try { cancelNotification(sbn.key) } catch (_: SecurityException) { }
-    }
   }
 
   override fun onNotificationRemoved(sbn: StatusBarNotification?) {
@@ -158,5 +199,9 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     } else if (state?.state == PlaybackState.STATE_STOPPED || state?.state == PlaybackState.STATE_NONE) {
       CapsuleManager.removeEvent("media_active")
     }
+  }
+
+  companion object {
+    private const val TAG = "CapsuleNotifListener"
   }
 }

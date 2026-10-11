@@ -9,7 +9,6 @@ import android.os.VibratorManager
 import com.example.data.CapsulePreferencesRepository
 import com.example.model.CapsuleConfig
 import com.example.model.CapsuleEvent
-import com.example.service.MediaControlBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -185,20 +184,51 @@ object CapsuleManager {
     }
   }
 
+  // Real Media Session Action Handler (hooked by CapsuleNotificationListenerService)
+  interface MediaActionHandler {
+    fun onPlayPause()
+    fun onSkipToNext()
+    fun onSkipToPrevious()
+  }
+
+  @Volatile
+  var mediaActionHandler: MediaActionHandler? = null
+
   // User Actions from Capsule Controls
   fun onMediaPlayPause() {
-    MediaControlBridge.playPause()
     performHaptic()
+    val handler = mediaActionHandler
+    if (handler != null) {
+      handler.onPlayPause()
+    } else {
+      val current = _activeEvent.value as? CapsuleEvent.Media ?: return
+      val updated = current.copy(isPlaying = !current.isPlaying)
+      postEvent(updated)
+    }
   }
 
   fun onMediaNext() {
-    MediaControlBridge.next()
     performHaptic()
+    val handler = mediaActionHandler
+    if (handler != null) {
+      handler.onSkipToNext()
+    } else {
+      val current = _activeEvent.value as? CapsuleEvent.Media ?: return
+      val updated = current.copy(progressMs = 0L)
+      postEvent(updated)
+    }
   }
 
   fun onMediaPrevious() {
-    MediaControlBridge.previous()
     performHaptic()
+    val handler = mediaActionHandler
+    if (handler != null) {
+      handler.onSkipToPrevious()
+    } else {
+      val current = _activeEvent.value as? CapsuleEvent.Media ?: return
+      val updated = current.copy(progressMs = 0L)
+      postEvent(updated)
+    }
   }
 
   fun onTimerPauseResume() {
