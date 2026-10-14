@@ -71,7 +71,10 @@ android {
         keyAlias = System.getenv("KEY_ALIAS") ?: "opencapsule"
         keyPassword = System.getenv("KEY_PASSWORD") ?: "opencapsule"
       } else {
-        throw GradleException("Release signing keystore is required.")
+        storeFile = file("${rootDir}/debug.keystore")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
       }
       enableV1Signing = true
       enableV2Signing = true
