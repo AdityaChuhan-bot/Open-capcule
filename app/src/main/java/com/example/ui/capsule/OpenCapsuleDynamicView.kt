@@ -70,8 +70,8 @@ fun OpenCapsuleDynamicView(
   val targetCornerRadius = if (isExpanded) 28.dp else config.cornerRadiusDp.dp
 
   val animatedWidth by animateDpAsState(targetValue = targetWidth, animationSpec = sizeSpec, label = "capsule_width")
-  val animatedHeight by animateDpAsState(targetValue = targetHeight, animationSpec = springSpec, label = "capsule_height")
-  val animatedRadius by animateDpAsState(targetValue = targetCornerRadius, animationSpec = springSpec, label = "capsule_radius")
+  val animatedHeight by animateDpAsState(targetValue = targetHeight, animationSpec = sizeSpec, label = "capsule_height")
+  val animatedRadius by animateDpAsState(targetValue = targetCornerRadius, animationSpec = sizeSpec, label = "capsule_radius")
 
   val backgroundColor = when (config.themeMode) {
     CapsuleThemeMode.SYSTEM -> if (MaterialTheme.colorScheme.surface.hashCode() % 2 == 0) CapsulePillBlack else CapsuleDarkBg
