@@ -64,7 +64,6 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
   private var composeView: ComposeView? = null
   private var windowParams: WindowManager.LayoutParams? = null
   private var systemEventsRegistrar: SystemEventsRegistrar? = null
-  private var detectedCutoutRect: Rect? = null
 
   override val lifecycle: Lifecycle get() = lifecycleRegistry
   override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
@@ -179,8 +178,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       WindowManager.LayoutParams.WRAP_CONTENT,
       WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
       WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
       PixelFormat.TRANSLUCENT
     ).apply {
       this.gravity = gravity
@@ -201,21 +199,6 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         setViewTreeLifecycleOwner(this@CapsuleOverlayService)
         setViewTreeSavedStateRegistryOwner(this@CapsuleOverlayService)
         setViewTreeViewModelStoreOwner(this@CapsuleOverlayService)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-          setOnApplyWindowInsetsListener { _, insets ->
-            val cutout = insets.displayCutout
-            if (cutout != null) {
-              val rects = cutout.boundingRects
-              val topRect = rects.firstOrNull { it.top <= 120 } ?: rects.firstOrNull()
-              if (topRect != null && topRect != detectedCutoutRect) {
-                detectedCutoutRect = topRect
-                updateOverlayLayout()
-              }
-            }
-            insets
-          }
-        }
 
         setContent {
           MyApplicationTheme {
@@ -251,59 +234,54 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     }
   }
 
+  /**
+   * Keep overlay placement deterministic. Insets delivered to a WRAP_CONTENT overlay are
+   * window-relative, not reliable full-display coordinates; treating them as screen
+   * coordinates made the capsule jump as insets were dispatched during relayout.
+   *
+   * Moto G85 uses a centered punch-hole, so auto-align uses center gravity and a stable
+   * top offset. Manual left/right positioning remains available when auto-align is disabled.
+   */
   private fun updateOverlayLayout() {
     val currentParams = windowParams ?: return
     val cfg = CapsuleManager.config.value
-    val displayMetrics = resources.displayMetrics
-    val density = displayMetrics.density
-    val screenWidth = displayMetrics.widthPixels
+    val density = resources.displayMetrics.density
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-      currentParams.layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-      } else {
-        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-      }
+      currentParams.layoutInDisplayCutoutMode =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        } else {
+          WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
     }
 
-    val cutout = detectedCutoutRect
-    if (cfg.autoAlignCutout && cutout != null) {
-      val cutoutCenterX = cutout.centerX()
-      val screenCenter = screenWidth / 2
-      val isCenterCutout = Math.abs(cutoutCenterX - screenCenter) < (48 * density)
-
-      if (isCenterCutout) {
-        currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        currentParams.x = (cfg.offsetX * density).toInt()
-        val baseTop = cutout.top.coerceAtLeast(0)
-        currentParams.y = baseTop + (cfg.offsetY * density).toInt()
-      } else if (cutoutCenterX < screenWidth / 2) {
-        currentParams.gravity = Gravity.TOP or Gravity.START
-        val targetX = (cutoutCenterX - (cfg.collapsedWidthDp * density / 2)).toInt()
-        currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        val baseTop = cutout.top.coerceAtLeast(0)
-        currentParams.y = baseTop + (cfg.offsetY * density).toInt()
-      } else {
-        currentParams.gravity = Gravity.TOP or Gravity.END
-        val distanceFromRight = screenWidth - cutoutCenterX
-        val targetX = (distanceFromRight - (cfg.collapsedWidthDp * density / 2)).toInt()
-        currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        val baseTop = cutout.top.coerceAtLeast(0)
-        currentParams.y = baseTop + (cfg.offsetY * density).toInt()
-      }
+    if (cfg.autoAlignCutout) {
+      currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+      currentParams.x = (cfg.offsetX * density).toInt()
+      currentParams.y = (cfg.offsetY * density).toInt()
     } else {
-      val g = when (cfg.position) {
+      currentParams.gravity = when (cfg.position) {
         CapsulePosition.LEFT -> Gravity.TOP or Gravity.START
         CapsulePosition.RIGHT -> Gravity.TOP or Gravity.END
         CapsulePosition.CENTER -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
       }
-      currentParams.gravity = g
       currentParams.x = (cfg.offsetX * density).toInt()
       currentParams.y = (cfg.offsetY * density).toInt()
     }
 
     try {
-      composeView?.let { windowManager?.updateViewLayout(it, currentParams) }
+      composeView?.let { view ->
+        if (view.isAttachedToWindow) {
+          windowManager?.updateViewLayout(view, currentParams)
+        }
+      }
+    } catch (e: IllegalArgumentException) {
+      // The overlay may be detached while Android is rebuilding its window after a
+      // rotation or process transition. Avoid crashing/restarting the service in that race.
+      Log.w(TAG, "Overlay detached during layout update", e)
+    } catch (e: WindowManager.BadTokenException) {
+      Log.w(TAG, "Overlay token is no longer valid", e)
     } catch (e: Exception) {
       Log.e(TAG, "Error updating overlay layout", e)
     }

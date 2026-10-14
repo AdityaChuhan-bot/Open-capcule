@@ -2,9 +2,9 @@ package com.example.ui.capsule
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -52,32 +52,26 @@ fun OpenCapsuleDynamicView(
   onCollapse: () -> Unit,
   modifier: Modifier = Modifier
 ) {
-  val springSpec = when (config.animationSpeed) {
-    AnimationSpeed.SLOW -> spring<androidx.compose.ui.unit.Dp>(
-      dampingRatio = Spring.DampingRatioLowBouncy,
-      stiffness = Spring.StiffnessVeryLow
-    )
-    AnimationSpeed.NORMAL -> spring<androidx.compose.ui.unit.Dp>(
-      dampingRatio = Spring.DampingRatioMediumBouncy,
-      stiffness = Spring.StiffnessLow
-    )
-    AnimationSpeed.FAST -> spring<androidx.compose.ui.unit.Dp>(
-      dampingRatio = Spring.DampingRatioNoBouncy,
-      stiffness = Spring.StiffnessMedium
-    )
-    AnimationSpeed.SPRINGY -> spring<androidx.compose.ui.unit.Dp>(
-      dampingRatio = Spring.DampingRatioHighBouncy,
-      stiffness = Spring.StiffnessLow
-    )
+  // Bounded tween animations avoid spring overshoot fighting the overlay window's
+  // wrap-content measurement and relayout on Android 16.
+  val animationDuration = when (config.animationSpeed) {
+    AnimationSpeed.SLOW -> 320
+    AnimationSpeed.NORMAL -> 220
+    AnimationSpeed.FAST -> 140
+    AnimationSpeed.SPRINGY -> 260
   }
+  val sizeSpec = tween<androidx.compose.ui.unit.Dp>(
+    durationMillis = animationDuration,
+    easing = FastOutSlowInEasing
+  )
 
   val targetWidth = if (isExpanded) config.expandedWidthDp.dp else config.collapsedWidthDp.dp
   val targetHeight = if (isExpanded) config.expandedHeightDp.dp else config.collapsedHeightDp.dp
   val targetCornerRadius = if (isExpanded) 28.dp else config.cornerRadiusDp.dp
 
-  val animatedWidth by animateDpAsState(targetValue = targetWidth, animationSpec = springSpec, label = "capsule_width")
-  val animatedHeight by animateDpAsState(targetValue = targetHeight, animationSpec = springSpec, label = "capsule_height")
-  val animatedRadius by animateDpAsState(targetValue = targetCornerRadius, animationSpec = springSpec, label = "capsule_radius")
+  val animatedWidth by animateDpAsState(targetValue = targetWidth, animationSpec = sizeSpec, label = "capsule_width")
+  val animatedHeight by animateDpAsState(targetValue = targetHeight, animationSpec = sizeSpec, label = "capsule_height")
+  val animatedRadius by animateDpAsState(targetValue = targetCornerRadius, animationSpec = sizeSpec, label = "capsule_radius")
 
   val backgroundColor = when (config.themeMode) {
     CapsuleThemeMode.SYSTEM -> if (MaterialTheme.colorScheme.surface.hashCode() % 2 == 0) CapsulePillBlack else CapsuleDarkBg
@@ -126,8 +120,8 @@ fun OpenCapsuleDynamicView(
       AnimatedContent(
         targetState = isExpanded,
         transitionSpec = {
-          fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) togetherWith
-            fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
+          fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)) togetherWith
+            fadeOut(animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing))
         },
         label = "capsule_content_transition"
       ) { expanded ->
