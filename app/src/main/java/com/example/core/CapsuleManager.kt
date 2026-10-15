@@ -74,12 +74,30 @@ object CapsuleManager {
     }
   }
 
+  private val _discoveredPackages = MutableStateFlow<Set<String>>(emptySet())
+  val discoveredPackages: StateFlow<Set<String>> = _discoveredPackages.asStateFlow()
+
+  fun recordDiscoveredPackage(pkg: String) {
+    if (pkg.isNotBlank() && !_discoveredPackages.value.contains(pkg)) {
+      _discoveredPackages.value = _discoveredPackages.value + pkg
+    }
+  }
+
   fun postEvent(event: CapsuleEvent) {
     val cfg = _config.value
     // Check if corresponding feature is enabled
     val isEnabled = when (event) {
       is CapsuleEvent.Media -> cfg.featureMedia
-      is CapsuleEvent.Notification -> cfg.featureNotifications && !cfg.blockedPackages.contains(event.packageName)
+      is CapsuleEvent.Notification -> {
+        val baseAllowed = cfg.featureNotifications && !cfg.blockedPackages.contains(event.packageName)
+        if (!baseAllowed) {
+          false
+        } else if (cfg.notificationFilterEnabled) {
+          cfg.allowedNotificationPackages.contains(event.packageName)
+        } else {
+          true
+        }
+      }
       is CapsuleEvent.Call -> cfg.featureCalls
       is CapsuleEvent.Timer, is CapsuleEvent.Stopwatch -> cfg.featureTimers
       is CapsuleEvent.Charging -> cfg.featureCharging
@@ -161,6 +179,7 @@ object CapsuleManager {
   }
 
   private fun performHaptic() {
+    if (!_config.value.hapticFeedbackEnabled) return
     appContext?.let { ctx ->
       try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

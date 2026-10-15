@@ -119,7 +119,16 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
     if (!config.featureNotifications) return
 
     val pkg = sbn.packageName ?: ""
-    if (pkg == packageName || config.blockedPackages.contains(pkg)) return
+    if (pkg.isEmpty() || pkg == packageName || config.blockedPackages.contains(pkg)) return
+
+    // Record discovered package so user can easily toggle it in app selection UI
+    CapsuleManager.recordDiscoveredPackage(pkg)
+
+    // Per-app notification filtering: drop notifications if app is not in the allowed list
+    if (config.notificationFilterEnabled && !config.allowedNotificationPackages.contains(pkg)) {
+      Log.d(TAG, "Notification from $pkg skipped by per-app filter")
+      return
+    }
 
     val extras = sbn.notification.extras ?: return
     val rawTitle = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""

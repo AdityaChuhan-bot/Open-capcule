@@ -96,6 +96,7 @@ fun DashboardScreen(
   val context = LocalContext.current
   var showOverlayDisclosure by remember { mutableStateOf(false) }
   var showNotifDisclosure by remember { mutableStateOf(false) }
+  var showAppFilterDialog by remember { mutableStateOf(false) }
 
   val lifecycleOwner = LocalLifecycleOwner.current
   var isOverlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
@@ -318,27 +319,49 @@ fun DashboardScreen(
           Column(modifier = Modifier.weight(1f)) {
             Text("Notification Alerts", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(
-              text = if (isNotifListenerGranted) "Listener active (100% offline)" else "Requires Notification Access",
+              text = if (isNotifListenerGranted) {
+                if (config.notificationFilterEnabled)
+                  "Listener active • ${config.allowedNotificationPackages.size} apps allowed"
+                else
+                  "Listener active • All apps allowed"
+              } else {
+                "Requires Notification Access"
+              },
               style = MaterialTheme.typography.bodySmall,
               color = if (isNotifListenerGranted) BatteryGreen else MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
 
-          Button(
-            onClick = {
-              if (!isNotifListenerGranted) {
-                showNotifDisclosure = true
-              } else {
-                // Open listener settings so user can manage
-                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-              }
-            },
-            colors = ButtonDefaults.buttonColors(
-              containerColor = if (isNotifListenerGranted) PrimaryBlue.copy(alpha = 0.2f) else PrimaryBlue,
-              contentColor = if (isNotifListenerGranted) PrimaryBlue else Color.Black
-            )
+          Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Text(if (isNotifListenerGranted) "Configured" else "Enable", fontSize = 12.sp)
+            if (isNotifListenerGranted) {
+              OutlinedButton(
+                onClick = { showAppFilterDialog = true },
+                modifier = Modifier.testTag("btn_dashboard_filter_apps")
+              ) {
+                Text("Filter Apps", fontSize = 12.sp)
+              }
+            }
+
+            Button(
+              onClick = {
+                if (!isNotifListenerGranted) {
+                  showNotifDisclosure = true
+                } else {
+                  // Open listener settings so user can manage
+                  context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                }
+              },
+              colors = ButtonDefaults.buttonColors(
+                containerColor = if (isNotifListenerGranted) PrimaryBlue.copy(alpha = 0.2f) else PrimaryBlue,
+                contentColor = if (isNotifListenerGranted) PrimaryBlue else Color.Black
+              ),
+              modifier = Modifier.testTag("btn_dashboard_notification_settings")
+            ) {
+              Text(if (isNotifListenerGranted) "Settings" else "Enable", fontSize = 12.sp)
+            }
           }
         }
 
@@ -509,6 +532,14 @@ fun DashboardScreen(
           Text(context.getString(R.string.btn_not_now))
         }
       }
+    )
+  }
+
+  // Per-App Notification Filter Dialog
+  if (showAppFilterDialog) {
+    AppNotificationFilterDialog(
+      config = config,
+      onDismiss = { showAppFilterDialog = false }
     )
   }
 }

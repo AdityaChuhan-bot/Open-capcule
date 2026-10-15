@@ -13,6 +13,20 @@ enum class AnimationSpeed {
   SPRINGY
 }
 
+enum class AnimationStyle {
+  SPRING,
+  FADE,
+  BOUNCE,
+  SMOOTH,
+  MINIMAL
+}
+
+enum class ExpansionBehavior {
+  CENTER_EXPAND,
+  DOWNWARD_EXPAND,
+  POP_EXPAND
+}
+
 enum class CapsuleThemeMode {
   SYSTEM,
   DARK,
@@ -32,7 +46,16 @@ data class CapsuleConfig(
   val expandedWidthDp: Int = 340,
   val expandedHeightDp: Int = 150,
   val cornerRadiusDp: Int = 22,
+
+  // Customizable Animation Options
+  val animationsEnabled: Boolean = true,
   val animationSpeed: AnimationSpeed = AnimationSpeed.NORMAL,
+  val animationStyle: AnimationStyle = AnimationStyle.SPRING,
+  val expansionBehavior: ExpansionBehavior = ExpansionBehavior.CENTER_EXPAND,
+  val swipeUpToCollapseEnabled: Boolean = true,
+  val tapOutsideToDismissEnabled: Boolean = true,
+  val hapticFeedbackEnabled: Boolean = true,
+
   val themeMode: CapsuleThemeMode = CapsuleThemeMode.DYNAMIC_MATERIAL_YOU,
   val notificationPreviewsEnabled: Boolean = true,
   val consumeNotifications: Boolean = true,
@@ -51,5 +74,9 @@ data class CapsuleConfig(
   val featureDownloads: Boolean = true,
   val featureSystemEvents: Boolean = true,
 
+  // Per-app notification filtering
+  val notificationFilterEnabled: Boolean = false,
+  val allowedNotificationPackages: Set<String> = emptySet(),
   val blockedPackages: Set<String> = emptySet()
 )
+

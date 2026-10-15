@@ -10,9 +10,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.model.AnimationSpeed
+import com.example.model.AnimationStyle
 import com.example.model.CapsuleConfig
 import com.example.model.CapsulePosition
 import com.example.model.CapsuleThemeMode
+import com.example.model.ExpansionBehavior
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -32,7 +34,16 @@ class CapsulePreferencesRepository(private val context: Context) {
     val EXPANDED_WIDTH = intPreferencesKey("expanded_width")
     val EXPANDED_HEIGHT = intPreferencesKey("expanded_height")
     val CORNER_RADIUS = intPreferencesKey("corner_radius")
+
+    // Animation preferences
+    val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
     val ANIMATION_SPEED = stringPreferencesKey("animation_speed")
+    val ANIMATION_STYLE = stringPreferencesKey("animation_style")
+    val EXPANSION_BEHAVIOR = stringPreferencesKey("expansion_behavior")
+    val SWIPE_UP_COLLAPSE = booleanPreferencesKey("swipe_up_collapse")
+    val TAP_OUTSIDE_DISMISS = booleanPreferencesKey("tap_outside_dismiss")
+    val HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
+
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val NOTIF_PREVIEWS = booleanPreferencesKey("notif_previews")
     val AUTO_COLLAPSE_TIMEOUT = intPreferencesKey("auto_collapse_timeout")
@@ -47,6 +58,9 @@ class CapsulePreferencesRepository(private val context: Context) {
     val FEAT_DOWNLOADS = booleanPreferencesKey("feat_downloads")
     val FEAT_SYSTEM_EVENTS = booleanPreferencesKey("feat_system_events")
 
+    // Per-app filtering
+    val NOTIF_FILTER_ENABLED = booleanPreferencesKey("notif_filter_enabled")
+    val ALLOWED_NOTIF_PACKAGES = stringSetPreferencesKey("allowed_notif_packages")
     val BLOCKED_PACKAGES = stringSetPreferencesKey("blocked_packages")
   }
 
@@ -67,11 +81,27 @@ class CapsulePreferencesRepository(private val context: Context) {
       expandedWidthDp = prefs[Keys.EXPANDED_WIDTH] ?: 340,
       expandedHeightDp = prefs[Keys.EXPANDED_HEIGHT] ?: 150,
       cornerRadiusDp = prefs[Keys.CORNER_RADIUS] ?: 22,
+
+      animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
       animationSpeed = try {
         AnimationSpeed.valueOf(prefs[Keys.ANIMATION_SPEED] ?: AnimationSpeed.NORMAL.name)
       } catch (e: Exception) {
         AnimationSpeed.NORMAL
       },
+      animationStyle = try {
+        AnimationStyle.valueOf(prefs[Keys.ANIMATION_STYLE] ?: AnimationStyle.SPRING.name)
+      } catch (e: Exception) {
+        AnimationStyle.SPRING
+      },
+      expansionBehavior = try {
+        ExpansionBehavior.valueOf(prefs[Keys.EXPANSION_BEHAVIOR] ?: ExpansionBehavior.CENTER_EXPAND.name)
+      } catch (e: Exception) {
+        ExpansionBehavior.CENTER_EXPAND
+      },
+      swipeUpToCollapseEnabled = prefs[Keys.SWIPE_UP_COLLAPSE] ?: true,
+      tapOutsideToDismissEnabled = prefs[Keys.TAP_OUTSIDE_DISMISS] ?: true,
+      hapticFeedbackEnabled = prefs[Keys.HAPTIC_FEEDBACK] ?: true,
+
       themeMode = try {
         CapsuleThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: CapsuleThemeMode.DYNAMIC_MATERIAL_YOU.name)
       } catch (e: Exception) {
@@ -90,6 +120,8 @@ class CapsulePreferencesRepository(private val context: Context) {
       featureDownloads = prefs[Keys.FEAT_DOWNLOADS] ?: true,
       featureSystemEvents = prefs[Keys.FEAT_SYSTEM_EVENTS] ?: true,
 
+      notificationFilterEnabled = prefs[Keys.NOTIF_FILTER_ENABLED] ?: false,
+      allowedNotificationPackages = prefs[Keys.ALLOWED_NOTIF_PACKAGES] ?: emptySet(),
       blockedPackages = prefs[Keys.BLOCKED_PACKAGES] ?: emptySet()
     )
   }
@@ -112,11 +144,27 @@ class CapsulePreferencesRepository(private val context: Context) {
         expandedWidthDp = prefs[Keys.EXPANDED_WIDTH] ?: 340,
         expandedHeightDp = prefs[Keys.EXPANDED_HEIGHT] ?: 150,
         cornerRadiusDp = prefs[Keys.CORNER_RADIUS] ?: 22,
+
+        animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
         animationSpeed = try {
           AnimationSpeed.valueOf(prefs[Keys.ANIMATION_SPEED] ?: AnimationSpeed.NORMAL.name)
         } catch (e: Exception) {
           AnimationSpeed.NORMAL
         },
+        animationStyle = try {
+          AnimationStyle.valueOf(prefs[Keys.ANIMATION_STYLE] ?: AnimationStyle.SPRING.name)
+        } catch (e: Exception) {
+          AnimationStyle.SPRING
+        },
+        expansionBehavior = try {
+          ExpansionBehavior.valueOf(prefs[Keys.EXPANSION_BEHAVIOR] ?: ExpansionBehavior.CENTER_EXPAND.name)
+        } catch (e: Exception) {
+          ExpansionBehavior.CENTER_EXPAND
+        },
+        swipeUpToCollapseEnabled = prefs[Keys.SWIPE_UP_COLLAPSE] ?: true,
+        tapOutsideToDismissEnabled = prefs[Keys.TAP_OUTSIDE_DISMISS] ?: true,
+        hapticFeedbackEnabled = prefs[Keys.HAPTIC_FEEDBACK] ?: true,
+
         themeMode = try {
           CapsuleThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: CapsuleThemeMode.DYNAMIC_MATERIAL_YOU.name)
         } catch (e: Exception) {
@@ -135,6 +183,8 @@ class CapsulePreferencesRepository(private val context: Context) {
         featureDownloads = prefs[Keys.FEAT_DOWNLOADS] ?: true,
         featureSystemEvents = prefs[Keys.FEAT_SYSTEM_EVENTS] ?: true,
 
+        notificationFilterEnabled = prefs[Keys.NOTIF_FILTER_ENABLED] ?: false,
+        allowedNotificationPackages = prefs[Keys.ALLOWED_NOTIF_PACKAGES] ?: emptySet(),
         blockedPackages = prefs[Keys.BLOCKED_PACKAGES] ?: emptySet()
       )
 
@@ -151,7 +201,15 @@ class CapsulePreferencesRepository(private val context: Context) {
       prefs[Keys.EXPANDED_WIDTH] = newConfig.expandedWidthDp
       prefs[Keys.EXPANDED_HEIGHT] = newConfig.expandedHeightDp
       prefs[Keys.CORNER_RADIUS] = newConfig.cornerRadiusDp
+
+      prefs[Keys.ANIMATIONS_ENABLED] = newConfig.animationsEnabled
       prefs[Keys.ANIMATION_SPEED] = newConfig.animationSpeed.name
+      prefs[Keys.ANIMATION_STYLE] = newConfig.animationStyle.name
+      prefs[Keys.EXPANSION_BEHAVIOR] = newConfig.expansionBehavior.name
+      prefs[Keys.SWIPE_UP_COLLAPSE] = newConfig.swipeUpToCollapseEnabled
+      prefs[Keys.TAP_OUTSIDE_DISMISS] = newConfig.tapOutsideToDismissEnabled
+      prefs[Keys.HAPTIC_FEEDBACK] = newConfig.hapticFeedbackEnabled
+
       prefs[Keys.THEME_MODE] = newConfig.themeMode.name
       prefs[Keys.NOTIF_PREVIEWS] = newConfig.notificationPreviewsEnabled
       prefs[Keys.AUTO_COLLAPSE_TIMEOUT] = newConfig.autoCollapseTimeoutSeconds
@@ -166,6 +224,8 @@ class CapsulePreferencesRepository(private val context: Context) {
       prefs[Keys.FEAT_DOWNLOADS] = newConfig.featureDownloads
       prefs[Keys.FEAT_SYSTEM_EVENTS] = newConfig.featureSystemEvents
 
+      prefs[Keys.NOTIF_FILTER_ENABLED] = newConfig.notificationFilterEnabled
+      prefs[Keys.ALLOWED_NOTIF_PACKAGES] = newConfig.allowedNotificationPackages
       prefs[Keys.BLOCKED_PACKAGES] = newConfig.blockedPackages
     }
   }

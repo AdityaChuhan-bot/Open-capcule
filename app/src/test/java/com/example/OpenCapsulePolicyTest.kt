@@ -89,4 +89,64 @@ class OpenCapsulePolicyTest {
     assertTrue(privateNotif.isSensitive)
     assertEquals("New notification", privateNotif.content)
   }
+
+  @Test
+  fun testPerAppNotificationFilteringLogic() {
+    val allowedApp = "com.whatsapp"
+    val disallowedApp = "com.random.unwanted"
+
+    val configWithFilter = com.example.model.CapsuleConfig(
+      featureNotifications = true,
+      notificationFilterEnabled = true,
+      allowedNotificationPackages = setOf(allowedApp)
+    )
+
+    // Allowed package check
+    val isAllowedPackagePermitted = configWithFilter.featureNotifications &&
+      !configWithFilter.blockedPackages.contains(allowedApp) &&
+      (!configWithFilter.notificationFilterEnabled || configWithFilter.allowedNotificationPackages.contains(allowedApp))
+    assertTrue("Allowed package should be permitted through filter", isAllowedPackagePermitted)
+
+    // Disallowed package check
+    val isDisallowedPackagePermitted = configWithFilter.featureNotifications &&
+      !configWithFilter.blockedPackages.contains(disallowedApp) &&
+      (!configWithFilter.notificationFilterEnabled || configWithFilter.allowedNotificationPackages.contains(disallowedApp))
+    assertFalse("Disallowed package should be filtered out", isDisallowedPackagePermitted)
+
+    // When filter is disabled, both should be allowed
+    val configFilterDisabled = configWithFilter.copy(notificationFilterEnabled = false)
+    val isDisallowedPermittedWhenFilterOff = configFilterDisabled.featureNotifications &&
+      !configFilterDisabled.blockedPackages.contains(disallowedApp) &&
+      (!configFilterDisabled.notificationFilterEnabled || configFilterDisabled.allowedNotificationPackages.contains(disallowedApp))
+    assertTrue("All non-blocked packages permitted when filter is off", isDisallowedPermittedWhenFilterOff)
+  }
+
+  @Test
+  fun testCustomizableAnimationOptionsDefaultsAndOverrides() {
+    val defaultConfig = com.example.model.CapsuleConfig()
+    assertTrue("Animations should be enabled by default", defaultConfig.animationsEnabled)
+    assertEquals(com.example.model.AnimationSpeed.NORMAL, defaultConfig.animationSpeed)
+    assertEquals(com.example.model.AnimationStyle.SPRING, defaultConfig.animationStyle)
+    assertEquals(com.example.model.ExpansionBehavior.CENTER_EXPAND, defaultConfig.expansionBehavior)
+    assertTrue("Swipe-up to collapse should be enabled by default", defaultConfig.swipeUpToCollapseEnabled)
+    assertTrue("Tap outside to dismiss should be enabled by default", defaultConfig.tapOutsideToDismissEnabled)
+    assertTrue("Haptic feedback should be enabled by default", defaultConfig.hapticFeedbackEnabled)
+
+    val customConfig = defaultConfig.copy(
+      animationsEnabled = false,
+      animationSpeed = com.example.model.AnimationSpeed.FAST,
+      animationStyle = com.example.model.AnimationStyle.FADE,
+      expansionBehavior = com.example.model.ExpansionBehavior.DOWNWARD_EXPAND,
+      swipeUpToCollapseEnabled = false,
+      tapOutsideToDismissEnabled = false
+    )
+
+    assertFalse(customConfig.animationsEnabled)
+    assertEquals(com.example.model.AnimationSpeed.FAST, customConfig.animationSpeed)
+    assertEquals(com.example.model.AnimationStyle.FADE, customConfig.animationStyle)
+    assertEquals(com.example.model.ExpansionBehavior.DOWNWARD_EXPAND, customConfig.expansionBehavior)
+    assertFalse(customConfig.swipeUpToCollapseEnabled)
+    assertFalse(customConfig.tapOutsideToDismissEnabled)
+  }
 }
+

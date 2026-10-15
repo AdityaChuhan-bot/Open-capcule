@@ -12,11 +12,15 @@
     <!-- Subtle haptics feedback when interacting with the capsule -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- CRITICAL: No INTERNET permission is declared. OpenCapsule is strictly 100% offline. -->
-
+    <!-- Allows querying installed launcher apps for user-controlled notification filtering -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
-        android:name=".OpenCapsuleApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"

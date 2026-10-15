@@ -93,12 +93,14 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
   }
 
   fun handleOutsideTap() {
+    if (!CapsuleManager.config.value.tapOutsideToDismissEnabled) return
     Log.d(TAG, "Dismissing expanded capsule from outside tap")
     onOutsideTapCallback?.invoke()
     globalOnOutsideTapCallback?.invoke()
   }
 
   fun handleSwipeUp() {
+    if (!CapsuleManager.config.value.swipeUpToCollapseEnabled) return
     Log.d(TAG, "Collapsing expanded capsule from swipe-up gesture")
     onSwipeUpCallback?.invoke()
     globalOnSwipeUpCallback?.invoke()
@@ -403,7 +405,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
       WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
 
-    currentParams.flags = if (isExpanded) {
+    currentParams.flags = if (isExpanded && cfg.tapOutsideToDismissEnabled) {
       baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
     } else {
       baseFlags

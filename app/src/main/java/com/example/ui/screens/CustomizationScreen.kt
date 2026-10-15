@@ -8,12 +8,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Animation
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -26,6 +35,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -34,9 +47,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.core.CapsuleManager
 import com.example.model.AnimationSpeed
+import com.example.model.AnimationStyle
 import com.example.model.CapsuleConfig
 import com.example.model.CapsulePosition
 import com.example.model.CapsuleThemeMode
+import com.example.model.ExpansionBehavior
 import com.example.ui.theme.PrimaryBlue
 
 @Composable
@@ -44,6 +59,14 @@ fun CustomizationScreen(
   config: CapsuleConfig,
   modifier: Modifier = Modifier
 ) {
+  var showAppFilterDialog by remember { mutableStateOf(false) }
+
+  if (showAppFilterDialog) {
+    AppNotificationFilterDialog(
+      config = config,
+      onDismiss = { showAppFilterDialog = false }
+    )
+  }
   Column(
     modifier = modifier
       .fillMaxSize()
@@ -196,7 +219,7 @@ fun CustomizationScreen(
     }
 
     // -------------------------------------------------------------
-    // ANIMATION & PHYSICS
+    // ANIMATION & MOTION DYNAMICS
     // -------------------------------------------------------------
     Card(
       modifier = Modifier.fillMaxWidth(),
@@ -205,47 +228,237 @@ fun CustomizationScreen(
     ) {
       Column(
         modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
       ) {
-        Text("Spring Physics & Motion", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
         Row(
           modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          FilterChip(
-            selected = config.animationSpeed == AnimationSpeed.SLOW,
-            onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.SLOW) } },
-            label = { Text("Slow") },
-            modifier = Modifier.weight(1f)
-          )
-          FilterChip(
-            selected = config.animationSpeed == AnimationSpeed.NORMAL,
-            onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.NORMAL) } },
-            label = { Text("Normal") },
-            modifier = Modifier.weight(1f)
-          )
-          FilterChip(
-            selected = config.animationSpeed == AnimationSpeed.FAST,
-            onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.FAST) } },
-            label = { Text("Fast") },
-            modifier = Modifier.weight(1f)
-          )
-          FilterChip(
-            selected = config.animationSpeed == AnimationSpeed.SPRINGY,
-            onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.SPRINGY) } },
-            label = { Text("Springy") },
-            modifier = Modifier.weight(1f)
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            Icon(Icons.Default.Animation, contentDescription = null, tint = PrimaryBlue)
+            Text("Motion & Animations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+          }
+          Switch(
+            checked = config.animationsEnabled,
+            onCheckedChange = { isEnabled ->
+              CapsuleManager.updateConfig { it.copy(animationsEnabled = isEnabled) }
+            },
+            colors = SwitchDefaults.colors(checkedThumbColor = PrimaryBlue),
+            modifier = Modifier.testTag("switch_enable_animations")
           )
         }
 
-        SettingSlider(
-          label = "Auto-Collapse Timeout",
-          valueText = "${config.autoCollapseTimeoutSeconds}s",
-          value = config.autoCollapseTimeoutSeconds.toFloat(),
-          valueRange = 3f..15f,
-          onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(autoCollapseTimeoutSeconds = it.toInt()) } }
+        Text(
+          if (config.animationsEnabled)
+            "Customizable Material 3 motion physics, speeds, and organic expansion behaviors."
+          else
+            "Animations disabled for instant snapping, reduced GPU overhead, and maximum performance.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+        if (config.animationsEnabled) {
+          // Animation Speed Selector
+          Text("Animation Speed", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            FilterChip(
+              selected = config.animationSpeed == AnimationSpeed.SLOW,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.SLOW) } },
+              label = { Text("Slow", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.animationSpeed == AnimationSpeed.NORMAL,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.NORMAL) } },
+              label = { Text("Normal", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.animationSpeed == AnimationSpeed.FAST,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.FAST) } },
+              label = { Text("Fast", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.animationSpeed == AnimationSpeed.SPRINGY,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationSpeed = AnimationSpeed.SPRINGY) } },
+              label = { Text("Springy", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f)
+            )
+          }
+
+          // Motion Style Selector (Spring, Fade, Bounce, Smooth, Minimal)
+          Text("Motion Style", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            FilterChip(
+              selected = config.animationStyle == AnimationStyle.SPRING,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationStyle = AnimationStyle.SPRING) } },
+              label = { Text("Spring", fontSize = 11.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.animationStyle == AnimationStyle.FADE,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationStyle = AnimationStyle.FADE) } },
+              label = { Text("Fade", fontSize = 11.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.animationStyle == AnimationStyle.BOUNCE,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationStyle = AnimationStyle.BOUNCE) } },
+              label = { Text("Bounce", fontSize = 11.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.animationStyle == AnimationStyle.SMOOTH,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationStyle = AnimationStyle.SMOOTH) } },
+              label = { Text("Smooth", fontSize = 11.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.animationStyle == AnimationStyle.MINIMAL,
+              onClick = { CapsuleManager.updateConfig { it.copy(animationStyle = AnimationStyle.MINIMAL) } },
+              label = { Text("Minimal", fontSize = 11.sp) },
+              modifier = Modifier.weight(1f)
+            )
+          }
+
+          // Expansion & Collapse Behavior Selector
+          Text("Expansion & Reveal Behavior", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            FilterChip(
+              selected = config.expansionBehavior == ExpansionBehavior.CENTER_EXPAND,
+              onClick = { CapsuleManager.updateConfig { it.copy(expansionBehavior = ExpansionBehavior.CENTER_EXPAND) } },
+              label = { Text("Symmetric", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.expansionBehavior == ExpansionBehavior.DOWNWARD_EXPAND,
+              onClick = { CapsuleManager.updateConfig { it.copy(expansionBehavior = ExpansionBehavior.DOWNWARD_EXPAND) } },
+              label = { Text("Downward", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+              selected = config.expansionBehavior == ExpansionBehavior.POP_EXPAND,
+              onClick = { CapsuleManager.updateConfig { it.copy(expansionBehavior = ExpansionBehavior.POP_EXPAND) } },
+              label = { Text("Pop", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f)
+            )
+          }
+
+          // Gestures & Interactions
+          Text("Gestures & Interaction", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+
+          ToggleSetting(
+            title = "Swipe-Up to Collapse",
+            subtitle = "Swipe up on the expanded capsule to smoothly collapse back to minimal pill",
+            checked = config.swipeUpToCollapseEnabled,
+            onCheckedChange = { checked ->
+              CapsuleManager.updateConfig { it.copy(swipeUpToCollapseEnabled = checked) }
+            }
+          )
+
+          ToggleSetting(
+            title = "Tap Outside to Dismiss",
+            subtitle = "Tap empty screen area outside the capsule window to collapse it",
+            checked = config.tapOutsideToDismissEnabled,
+            onCheckedChange = { checked ->
+              CapsuleManager.updateConfig { it.copy(tapOutsideToDismissEnabled = checked) }
+            }
+          )
+
+          ToggleSetting(
+            title = "Haptic Touch Feedback",
+            subtitle = "Subtle tactile click when expanding, collapsing, or interacting with controls",
+            checked = config.hapticFeedbackEnabled,
+            onCheckedChange = { checked ->
+              CapsuleManager.updateConfig { it.copy(hapticFeedbackEnabled = checked) }
+            }
+          )
+
+          SettingSlider(
+            label = "Auto-Collapse Timeout",
+            valueText = "${config.autoCollapseTimeoutSeconds}s",
+            value = config.autoCollapseTimeoutSeconds.toFloat(),
+            valueRange = 3f..15f,
+            onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(autoCollapseTimeoutSeconds = it.toInt()) } }
+          )
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // PER-APP NOTIFICATION FILTERING
+    // -------------------------------------------------------------
+    Card(
+      modifier = Modifier.fillMaxWidth(),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+      shape = RoundedCornerShape(20.dp)
+    ) {
+      Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            Icon(Icons.Default.FilterList, contentDescription = null, tint = PrimaryBlue)
+            Text("Per-App Notification Filtering", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+          }
+          Switch(
+            checked = config.notificationFilterEnabled,
+            onCheckedChange = { isEnabled ->
+              CapsuleManager.updateConfig { it.copy(notificationFilterEnabled = isEnabled) }
+            },
+            colors = SwitchDefaults.colors(checkedThumbColor = PrimaryBlue),
+            modifier = Modifier.testTag("switch_notification_filter_card")
+          )
+        }
+
+        Text(
+          if (config.notificationFilterEnabled)
+            "Active: Only notifications from checked apps will be processed and displayed in OpenCapsule."
+          else
+            "Inactive: Notifications from all applications are allowed (default). Turn on to select specific apps.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Button(
+          onClick = { showAppFilterDialog = true },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("btn_manage_allowed_apps"),
+          colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+          shape = RoundedCornerShape(12.dp)
+        ) {
+          Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            if (config.notificationFilterEnabled)
+              "Manage Allowed Apps (${config.allowedNotificationPackages.size} Selected)"
+            else
+              "Configure Allowed Apps (${config.allowedNotificationPackages.size} Selected)"
+          )
+        }
       }
     }
 
