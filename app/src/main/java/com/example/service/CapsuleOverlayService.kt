@@ -318,44 +318,13 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         var touchStartY = 0f
         var touchStartX = 0f
         var isTrackingSwipe = false
-        var trackingCollapsedTap = false
-        var collapsedDownX = 0f
-        var collapsedDownY = 0f
-        val collapsedTapSlop = ViewConfiguration.get(this@CapsuleOverlayService).scaledTouchSlop
 
         setOnTouchListener { _, event ->
-          // Keep the window geometry unchanged during ACTION_DOWN. Expanding on
-          // touch-down resizes the overlay mid-gesture and can cancel/retarget
-          // the tap on Android 16/OEM window managers.
+          // Let Compose's Surface.clickable receive every touch while collapsed.
+          // A View.OnTouchListener that consumes DOWN/UP can starve Compose's
+          // pointer-input system, making the pill look visible but not tappable.
           if (!CapsuleManager.isExpanded.value) {
-            when (event.actionMasked) {
-              MotionEvent.ACTION_DOWN -> {
-                trackingCollapsedTap = true
-                collapsedDownX = event.rawX
-                collapsedDownY = event.rawY
-                return@setOnTouchListener true
-              }
-              MotionEvent.ACTION_MOVE -> {
-                if (trackingCollapsedTap &&
-                  (kotlin.math.abs(event.rawX - collapsedDownX) > collapsedTapSlop ||
-                   kotlin.math.abs(event.rawY - collapsedDownY) > collapsedTapSlop)) {
-                  trackingCollapsedTap = false
-                }
-                return@setOnTouchListener trackingCollapsedTap
-              }
-              MotionEvent.ACTION_UP -> {
-                val wasTap = trackingCollapsedTap &&
-                  kotlin.math.abs(event.rawX - collapsedDownX) <= collapsedTapSlop &&
-                  kotlin.math.abs(event.rawY - collapsedDownY) <= collapsedTapSlop
-                trackingCollapsedTap = false
-                if (wasTap) CapsuleManager.expandCapsule()
-                return@setOnTouchListener true
-              }
-              MotionEvent.ACTION_CANCEL -> {
-                trackingCollapsedTap = false
-                return@setOnTouchListener true
-              }
-            }
+            return@setOnTouchListener false
           }
 
           // Tap outside the overlay window dismisses the expanded capsule
