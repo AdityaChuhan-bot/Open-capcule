@@ -318,21 +318,42 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         var touchStartX = 0f
         var isTrackingSwipe = false
         var trackingCollapsedTap = false
+        var collapsedDownX = 0f
+        var collapsedDownY = 0f
+        val touchSlop = android.view.ViewConfiguration.get(this@CapsuleOverlayService).scaledTouchSlop
 
         setOnTouchListener { _, event ->
-          // Once the idle pill receives ACTION_DOWN, consume the complete gesture.
-          // Expand immediately so a relayout/recomposition cannot cancel the tap
-          // before ACTION_UP on OEM overlay implementations.
+          // Do not resize/reposition the window on ACTION_DOWN: WindowManager can
+          // cancel the in-flight gesture when the ComposeView changes size. Wait
+          // until ACTION_UP and expand only if this was a tap, not a drag.
           if (trackingCollapsedTap) {
-            if (event.actionMasked == MotionEvent.ACTION_UP ||
-                event.actionMasked == MotionEvent.ACTION_CANCEL) {
-              trackingCollapsedTap = false
+            when (event.actionMasked) {
+              MotionEvent.ACTION_MOVE -> {
+                if (kotlin.math.abs(event.rawX - collapsedDownX) > touchSlop * 2 ||
+                    kotlin.math.abs(event.rawY - collapsedDownY) > touchSlop * 2) {
+                  trackingCollapsedTap = false
+                  return@setOnTouchListener false
+                }
+                return@setOnTouchListener true
+              }
+              MotionEvent.ACTION_UP -> {
+                val isTap = kotlin.math.abs(event.rawX - collapsedDownX) <= touchSlop * 2 &&
+                  kotlin.math.abs(event.rawY - collapsedDownY) <= touchSlop * 2
+                trackingCollapsedTap = false
+                if (isTap) CapsuleManager.expandCapsule()
+                return@setOnTouchListener true
+              }
+              MotionEvent.ACTION_CANCEL -> {
+                trackingCollapsedTap = false
+                return@setOnTouchListener true
+              }
             }
             return@setOnTouchListener true
           }
           if (!CapsuleManager.isExpanded.value && event.actionMasked == MotionEvent.ACTION_DOWN) {
+            collapsedDownX = event.rawX
+            collapsedDownY = event.rawY
             trackingCollapsedTap = true
-            CapsuleManager.expandCapsule()
             return@setOnTouchListener true
           }
 
