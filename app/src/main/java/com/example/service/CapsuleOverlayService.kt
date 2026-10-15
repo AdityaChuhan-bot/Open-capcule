@@ -16,6 +16,7 @@ import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -234,6 +235,14 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             }
           }
         }
+        setOnTouchListener { _, event ->
+          if (event.action == MotionEvent.ACTION_OUTSIDE && CapsuleManager.isExpanded.value) {
+            CapsuleManager.collapseCapsule()
+            true
+          } else {
+            false
+          }
+        }
       }
       composeView = view
 
@@ -249,14 +258,32 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         updateOverlayLayout()
       }
     }
+
+    // Listen to expanded state changes to refresh touch dispatch and window flags
+    serviceScope.launch {
+      CapsuleManager.isExpanded.collect {
+        updateOverlayLayout()
+      }
+    }
   }
 
   private fun updateOverlayLayout() {
     val currentParams = windowParams ?: return
     val cfg = CapsuleManager.config.value
+    val isExpanded = CapsuleManager.isExpanded.value
     val displayMetrics = resources.displayMetrics
     val density = displayMetrics.density
     val screenWidth = displayMetrics.widthPixels
+
+    val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+      WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+      WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+
+    currentParams.flags = if (isExpanded) {
+      baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+    } else {
+      baseFlags
+    }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
       currentParams.layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -266,6 +293,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       }
     }
 
+    val currentWidthDp = if (isExpanded) cfg.expandedWidthDp else cfg.collapsedWidthDp
     val cutout = detectedCutoutRect
     if (cfg.autoAlignCutout && cutout != null) {
       val cutoutCenterX = cutout.centerX()
@@ -279,14 +307,14 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         currentParams.y = baseTop + (cfg.offsetY * density).toInt()
       } else if (cutoutCenterX < screenWidth / 2) {
         currentParams.gravity = Gravity.TOP or Gravity.START
-        val targetX = (cutoutCenterX - (cfg.collapsedWidthDp * density / 2)).toInt()
+        val targetX = (cutoutCenterX - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
         val baseTop = cutout.top.coerceAtLeast(0)
         currentParams.y = baseTop + (cfg.offsetY * density).toInt()
       } else {
         currentParams.gravity = Gravity.TOP or Gravity.END
         val distanceFromRight = screenWidth - cutoutCenterX
-        val targetX = (distanceFromRight - (cfg.collapsedWidthDp * density / 2)).toInt()
+        val targetX = (distanceFromRight - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
         val baseTop = cutout.top.coerceAtLeast(0)
         currentParams.y = baseTop + (cfg.offsetY * density).toInt()

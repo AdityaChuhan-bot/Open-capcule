@@ -103,32 +103,28 @@ jobs:
           ./gradlew :app:testDebugUnitTest --stacktrace || echo "::warning::Unit tests completed with warnings. Continuing APK compilation."
 
       - name: Build Release & Debug APKs
-        run: ./gradlew :app:assembleFullRelease :app:assembleCoreRelease :app:assembleFullDebug --stacktrace
+        run: ./gradlew :app:assembleRelease :app:assembleDebug --stacktrace
 
       - name: Package & Prepare Release Artifacts
         id: package_apk
         run: |
           mkdir -p release-artifacts
           
-          # Explicitly package the full-feature and notification-free core variants.
-          FULL_RELEASE_APK=$(find app/build/outputs/apk/full/release -name "*.apk" | head -n 1)
-          CORE_RELEASE_APK=$(find app/build/outputs/apk/core/release -name "*.apk" | head -n 1)
-          FULL_DEBUG_APK=$(find app/build/outputs/apk/full/debug -name "*.apk" | head -n 1)
+          RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          DEBUG_APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
 
-          test -f "$FULL_RELEASE_APK"
-          test -f "$CORE_RELEASE_APK"
+          test -f "$RELEASE_APK"
 
-          cp "$FULL_RELEASE_APK" release-artifacts/OpenCapsule-full-release.apk
-          cp "$FULL_RELEASE_APK" release-artifacts/OpenCapsule-latest.apk
-          cp "$CORE_RELEASE_APK" release-artifacts/OpenCapsule-core-diagnostic.apk
+          cp "$RELEASE_APK" release-artifacts/OpenCapsule-release.apk
+          cp "$RELEASE_APK" release-artifacts/OpenCapsule-latest.apk
 
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             TAG_NAME="${GITHUB_REF#refs/tags/}"
-            cp "$FULL_RELEASE_APK" "release-artifacts/OpenCapsule-${TAG_NAME}.apk"
+            cp "$RELEASE_APK" "release-artifacts/OpenCapsule-${TAG_NAME}.apk"
           fi
 
-          if [ -f "$FULL_DEBUG_APK" ]; then
-            cp "$FULL_DEBUG_APK" release-artifacts/OpenCapsule-full-debug.apk
+          if [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" release-artifacts/OpenCapsule-debug.apk
           fi
 
           # Compute SHA-256 Checksums
@@ -163,60 +159,77 @@ jobs:
         id: release_info
         if: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true') }}
         run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          BUILD_TIME=$(date -u +"%Y-%m-%d %H:%M UTC")
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
             TITLE="OpenCapsule $TAG"
             IS_PRERELEASE=false
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.release_tag }}" ]; then
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.release_tag }}" ] && [ "${{ github.event.inputs.release_tag }}" != "latest" ]; then
             TAG="${{ github.event.inputs.release_tag }}"
-            TITLE="OpenCapsule $TAG"
+            TITLE="OpenCapsule $TAG ($SHORT_SHA)"
             IS_PRERELEASE=false
           else
             TAG="latest"
-            TITLE="OpenCapsule Latest Build"
+            TITLE="OpenCapsule Latest Build ($SHORT_SHA)"
             IS_PRERELEASE=false
           fi
           
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
+
+      - name: Update latest git tag
+        if: ${{ steps.release_info.outputs.tag == 'latest' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa latest -m "OpenCapsule Latest Build (${{ steps.release_info.outputs.short_sha }})"
+          git push origin latest --force || echo "::warning::Could not force-push latest tag, proceeding with release."
 
       - name: Publish APK to GitHub Release
         if: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true') }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: ${{ steps.release_info.outputs.title }}
           draft: false
           prerelease: ${{ steps.release_info.outputs.prerelease == 'true' }}
+          make_latest: true
+          overwrite_files: true
           files: |
             release-artifacts/*.apk
             release-artifacts/SHA256SUMS.txt
           body: |
             ## 🚀 OpenCapsule Build Release (${{ steps.release_info.outputs.tag }})
 
-            Automated production build generated from commit [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).
+            Automated production build generated from commit [`${{ steps.release_info.outputs.short_sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) at ${{ steps.release_info.outputs.build_time }}.
 
             ---
 
-            ### 📦 Download & Install
-            Download **`OpenCapsule-latest.apk`** below to install directly on your Android device (Android 8.0+ / API 26+).
+            ### 📦 Download APKs
+            Download and install directly on your Android device (Android 8.0+ / API 26+):
+
+            - **[OpenCapsule-release.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/OpenCapsule-release.apk)**: Unified production release APK with all features included (Recommended)
+            - **[OpenCapsule-latest.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/OpenCapsule-latest.apk)**: Direct latest build link
+            - **[OpenCapsule-debug.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/OpenCapsule-debug.apk)**: Debug build with Android logcat output
 
             ### 🛡️ Privacy & Security Guarantees
             - **100% Offline**: Zero `android.permission.INTERNET` declared; physically incapable of data transmission.
-            - **Zero Telemetry**: No tracking SDKs, no behavioral analytics, no external services.
+            - **Zero Telemetry**: No tracking SDKs, no analytics, no external services.
             - **Production Signed**: Signed with Android v1, v2, v3, and v4 signature schemes.
-            - **No High-Risk Permissions**: Removed telephony permissions (`READ_PHONE_STATE`) to eliminate scanner false-positives.
+            - **No High-Risk Telephony Permissions**: Removed `READ_PHONE_STATE` to eliminate scanner false-positives.
             - **No Accessibility Abuse**: Standard non-intrusive `WindowManager` overlay around front camera punch-holes.
 
             ### ⚠️ Google Play Protect Notice
             Because this APK is built from source and sideloaded outside the Google Play Store, Play Protect may display a prompt stating *"Play Protect doesn't recognize this app's developer"*:
             1. Tap **More details** (or the downward arrow).
             2. Tap **Install anyway**.
-            *OpenCapsule contains zero network code and zero trackers.*
 
             ### 📋 Checksums
-            Please verify the integrity of your download:
             ```
             $(cat release-artifacts/SHA256SUMS.txt)
             ```

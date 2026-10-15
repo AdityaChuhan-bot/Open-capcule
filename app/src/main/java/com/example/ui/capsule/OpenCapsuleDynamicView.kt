@@ -103,14 +103,15 @@ fun OpenCapsuleDynamicView(
       .clickable(
         interactionSource = interactionSource,
         indication = null,
+        enabled = !isExpanded,
         onClick = onToggleExpand
       )
-      .pointerInput(Unit) {
-        detectVerticalDragGestures { _, dragAmount ->
-          if (dragAmount < -15f) {
-            onCollapse()
-          } else if (dragAmount > 20f && !isExpanded) {
-            onToggleExpand()
+      .pointerInput(isExpanded) {
+        if (isExpanded) {
+          detectVerticalDragGestures { _, dragAmount ->
+            if (dragAmount < -12f) {
+              onCollapse()
+            }
           }
         }
       }

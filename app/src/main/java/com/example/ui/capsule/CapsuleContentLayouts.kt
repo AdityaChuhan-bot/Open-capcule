@@ -20,13 +20,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
+import android.os.BatteryManager
+import android.provider.MediaStore
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.example.MainActivity
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
@@ -362,6 +376,246 @@ fun CollapsedCapsuleContent(
   }
 }
 
+@Composable
+fun IdleQuickControlCenter(
+  config: CapsuleConfig,
+  onCollapse: () -> Unit
+) {
+  val context = LocalContext.current
+  val batteryManager = remember { context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager }
+  val batteryLevel = remember {
+    batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)?.coerceIn(0, 100) ?: 85
+  }
+  val isCharging = remember {
+    try {
+      val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+      val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+      status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+    } catch (_: Exception) {
+      false
+    }
+  }
+  val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }
+  val ringerMode = remember { audioManager?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL }
+
+  Column(
+    modifier = Modifier
+      .fillMaxSize()
+      .padding(horizontal = 6.dp, vertical = 4.dp),
+    verticalArrangement = Arrangement.SpaceBetween
+  ) {
+    // Top Row: Brand pill + Grabber + Collapse button
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+          .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+          .padding(horizontal = 8.dp, vertical = 3.dp)
+      ) {
+        Box(
+          modifier = Modifier
+            .size(7.dp)
+            .background(Color(0xFF10B981), CircleShape)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+          text = "OpenCapsule",
+          color = Color.White,
+          fontWeight = FontWeight.SemiBold,
+          fontSize = 11.sp
+        )
+      }
+
+      // Drag Grabber Indicator
+      Box(
+        modifier = Modifier
+          .width(36.dp)
+          .height(4.dp)
+          .background(Color.White.copy(alpha = 0.25f), CircleShape)
+      )
+
+      // Collapse chevron button
+      Box(
+        modifier = Modifier
+          .size(24.dp)
+          .background(Color.White.copy(alpha = 0.12f), CircleShape)
+          .clip(CircleShape)
+          .clickable { onCollapse() },
+        contentAlignment = Alignment.Center
+      ) {
+        Icon(
+          imageVector = Icons.Default.KeyboardArrowUp,
+          contentDescription = "Collapse",
+          tint = Color.White,
+          modifier = Modifier.size(16.dp)
+        )
+      }
+    }
+
+    // Middle Row: Battery Card & Sound Mode Card
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      // Battery Card
+      Row(
+        modifier = Modifier
+          .weight(1f)
+          .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+          .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Icon(
+          imageVector = if (isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryFull,
+          contentDescription = "Battery",
+          tint = if (isCharging) Color(0xFF10B981) else if (batteryLevel <= 20) Color(0xFFEF4444) else PrimaryBlue,
+          modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+          Text(
+            text = "$batteryLevel%",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+          )
+          Text(
+            text = if (isCharging) "Charging" else "Battery",
+            color = Color.White.copy(alpha = 0.65f),
+            fontSize = 10.sp
+          )
+        }
+      }
+
+      // Sound / Mode Card
+      Row(
+        modifier = Modifier
+          .weight(1f)
+          .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+          .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        val soundIcon = when (ringerMode) {
+          AudioManager.RINGER_MODE_SILENT -> Icons.Default.VolumeOff
+          AudioManager.RINGER_MODE_VIBRATE -> Icons.Default.Vibration
+          else -> Icons.Default.VolumeUp
+        }
+        val soundLabel = when (ringerMode) {
+          AudioManager.RINGER_MODE_SILENT -> "Silent"
+          AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
+          else -> "Sound"
+        }
+        Icon(
+          imageVector = soundIcon,
+          contentDescription = "Ringer Mode",
+          tint = Color(0xFFF59E0B),
+          modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+          Text(
+            text = soundLabel,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+          )
+          Text(
+            text = "Audio Mode",
+            color = Color.White.copy(alpha = 0.65f),
+            fontSize = 10.sp
+          )
+        }
+      }
+    }
+
+    // Bottom Row: Quick Tools & App Shortcuts
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      // Music Player launcher
+      Row(
+        modifier = Modifier
+          .weight(1f)
+          .height(34.dp)
+          .background(PrimaryBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+          .clip(RoundedCornerShape(10.dp))
+          .clickable {
+            try {
+              val intent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_APP_MUSIC)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+              }
+              context.startActivity(intent)
+            } catch (_: Exception) {
+              try {
+                val fallback = Intent(MediaStore.INTENT_ACTION_MUSIC_PLAYER).apply {
+                  flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(fallback)
+              } catch (_: Exception) {}
+            }
+            onCollapse()
+          }
+          .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+      ) {
+        Icon(
+          imageVector = Icons.Default.MusicNote,
+          contentDescription = null,
+          tint = PrimaryBlue,
+          modifier = Modifier.size(15.dp)
+        )
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+          text = "Music",
+          color = Color.White,
+          fontWeight = FontWeight.Medium,
+          fontSize = 11.sp
+        )
+      }
+
+      // Settings Launcher
+      Row(
+        modifier = Modifier
+          .weight(1f)
+          .height(34.dp)
+          .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+          .clip(RoundedCornerShape(10.dp))
+          .clickable {
+            val intent = Intent(context, MainActivity::class.java).apply {
+              flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            context.startActivity(intent)
+            onCollapse()
+          }
+          .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+      ) {
+        Icon(
+          imageVector = Icons.Default.Settings,
+          contentDescription = null,
+          tint = Color.White,
+          modifier = Modifier.size(15.dp)
+        )
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+          text = "Settings",
+          color = Color.White,
+          fontWeight = FontWeight.Medium,
+          fontSize = 11.sp
+        )
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------
 // Expanded Capsule Layout
 // ---------------------------------------------------------
@@ -373,16 +627,7 @@ fun ExpandedCapsuleContent(
   onCollapse: () -> Unit
 ) {
   if (event == null) {
-    // Idle expanded view
-    Column(
-      modifier = Modifier.fillMaxSize(),
-      verticalArrangement = Arrangement.Center,
-      horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-      Text("OpenCapsule Active", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-      Spacer(modifier = Modifier.height(6.dp))
-      Text("Ready for notifications, media, timers and events.", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-    }
+    IdleQuickControlCenter(config = config, onCollapse = onCollapse)
     return
   }
 
