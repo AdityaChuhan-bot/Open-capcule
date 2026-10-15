@@ -479,10 +479,15 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             ?.getInsets(android.view.WindowInsets.Type.statusBars())?.top ?: 0
         } catch (_: Exception) { 0 }
       } else 0
-      val cutoutTop = cutout?.takeIf {
-        it.top >= 0 && it.top < statusBarTop + (48f * density).toInt()
-      }?.top
-      val targetTop = cutoutTop ?: statusBarTop
+      // DisplayCutout bounding rectangles are in display coordinates. For an
+      // overlay using LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS, adding the status-bar
+      // inset places the pill below the physical punch-hole. Anchor at the top
+      // edge of the display instead; use cutout.top only when it is a valid
+      // display-coordinate value. The default offset baseline (12dp) means 0dp.
+      val cutoutTop = cutout?.top?.takeIf {
+        it >= 0 && it < (48f * density).toInt()
+      }
+      val targetTop = cutoutTop ?: 0
       currentParams.y = (targetTop + ((cfg.offsetY - 12) * density).toInt()).coerceAtLeast(0)
     } else {
       val g = when (cfg.position) {
