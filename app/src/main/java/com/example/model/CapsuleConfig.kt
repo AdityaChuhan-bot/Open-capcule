@@ -40,7 +40,7 @@ data class CapsuleConfig(
   val autoAlignCutout: Boolean = true,
   val position: CapsulePosition = CapsulePosition.CENTER,
   val offsetX: Int = 0,
-  val offsetY: Int = 12,
+  val offsetY: Int = 12, // legacy baseline maps to 0dp vertical fine-tune
   val collapsedWidthDp: Int = 140,
   val collapsedHeightDp: Int = 36,
   val expandedWidthDp: Int = 340,
