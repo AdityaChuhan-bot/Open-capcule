@@ -72,7 +72,7 @@ fun OpenCapsuleDynamicView(
   // Speed parameters: duration (ms), spring stiffness, damping ratio
   val (durationMillis, stiffness, dampingRatio) = when (config.animationSpeed) {
     AnimationSpeed.SLOW -> Triple(450, Spring.StiffnessVeryLow, Spring.DampingRatioLowBouncy)
-    AnimationSpeed.NORMAL -> Triple(280, Spring.StiffnessLow, Spring.DampingRatioMediumBouncy)
+    AnimationSpeed.NORMAL -> Triple(240, Spring.StiffnessMedium, Spring.DampingRatioNoBouncy)
     AnimationSpeed.FAST -> Triple(160, Spring.StiffnessMedium, Spring.DampingRatioNoBouncy)
     AnimationSpeed.SPRINGY -> Triple(320, Spring.StiffnessLow, Spring.DampingRatioHighBouncy)
   }
