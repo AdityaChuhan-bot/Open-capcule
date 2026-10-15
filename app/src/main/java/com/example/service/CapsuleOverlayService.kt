@@ -19,6 +19,7 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
+import android.view.ViewConfiguration
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
@@ -320,27 +321,34 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         var trackingCollapsedTap = false
         var collapsedDownX = 0f
         var collapsedDownY = 0f
-        val touchSlop = android.view.ViewConfiguration.get(this@CapsuleOverlayService).scaledTouchSlop
+        val collapsedTapSlop = ViewConfiguration.get(this@CapsuleOverlayService).scaledTouchSlop
 
         setOnTouchListener { _, event ->
-          // Do not resize/reposition the window on ACTION_DOWN: WindowManager can
-          // cancel the in-flight gesture when the ComposeView changes size. Wait
-          // until ACTION_UP and expand only if this was a tap, not a drag.
-          if (trackingCollapsedTap) {
+          // Keep the window geometry unchanged during ACTION_DOWN. Expanding on
+          // touch-down resizes the overlay mid-gesture and can cancel/retarget
+          // the tap on Android 16/OEM window managers.
+          if (!CapsuleManager.isExpanded.value) {
             when (event.actionMasked) {
-              MotionEvent.ACTION_MOVE -> {
-                if (kotlin.math.abs(event.rawX - collapsedDownX) > touchSlop * 2 ||
-                    kotlin.math.abs(event.rawY - collapsedDownY) > touchSlop * 2) {
-                  trackingCollapsedTap = false
-                  return@setOnTouchListener false
-                }
+              MotionEvent.ACTION_DOWN -> {
+                trackingCollapsedTap = true
+                collapsedDownX = event.rawX
+                collapsedDownY = event.rawY
                 return@setOnTouchListener true
               }
+              MotionEvent.ACTION_MOVE -> {
+                if (trackingCollapsedTap &&
+                  (kotlin.math.abs(event.rawX - collapsedDownX) > collapsedTapSlop ||
+                   kotlin.math.abs(event.rawY - collapsedDownY) > collapsedTapSlop)) {
+                  trackingCollapsedTap = false
+                }
+                return@setOnTouchListener trackingCollapsedTap
+              }
               MotionEvent.ACTION_UP -> {
-                val isTap = kotlin.math.abs(event.rawX - collapsedDownX) <= touchSlop * 2 &&
-                  kotlin.math.abs(event.rawY - collapsedDownY) <= touchSlop * 2
+                val wasTap = trackingCollapsedTap &&
+                  kotlin.math.abs(event.rawX - collapsedDownX) <= collapsedTapSlop &&
+                  kotlin.math.abs(event.rawY - collapsedDownY) <= collapsedTapSlop
                 trackingCollapsedTap = false
-                if (isTap) CapsuleManager.expandCapsule()
+                if (wasTap) CapsuleManager.expandCapsule()
                 return@setOnTouchListener true
               }
               MotionEvent.ACTION_CANCEL -> {
@@ -348,13 +356,6 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
                 return@setOnTouchListener true
               }
             }
-            return@setOnTouchListener true
-          }
-          if (!CapsuleManager.isExpanded.value && event.actionMasked == MotionEvent.ACTION_DOWN) {
-            collapsedDownX = event.rawX
-            collapsedDownY = event.rawY
-            trackingCollapsedTap = true
-            return@setOnTouchListener true
           }
 
           // Tap outside the overlay window dismisses the expanded capsule
@@ -466,57 +467,23 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
     val currentWidthDp = if (isExpanded) cfg.expandedWidthDp else cfg.collapsedWidthDp
     val cutout = detectedCutoutRect
-    if (cfg.autoAlignCutout && cutout == null) {
-      // Insets/cutout bounds are not consistently delivered to TYPE_APPLICATION_OVERLAY
-      // on some Android 16 OEM builds. The Moto G85 has a centered punch-hole, so
-      // use a deterministic centered top anchor instead of falling back to LEFT.
+    if (cfg.autoAlignCutout) {
+      // Center punch-hole on this device. Overlay inset Rect coordinates may be
+      // relative to the overlay rather than full display, causing the observed
+      // left shift. Use stable center gravity and anchor below status-bar inset.
       currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
       currentParams.x = (cfg.offsetX * density).toInt()
-      currentParams.y = ((cfg.offsetY - 12) * density).toInt().coerceAtLeast(0)
-    } else if (cfg.autoAlignCutout && cutout != null) {
-      val cutoutCenterX = cutout.centerX()
-      val screenCenter = screenWidth / 2
-      // The Moto G85 uses a centered punch-hole. Cutout bounds and WindowMetrics
-      // can use slightly different coordinate origins on Android 16, so use a
-      // proportional tolerance and center gravity to avoid width-dependent jumps.
-      val isCenterCutout = Math.abs(cutoutCenterX - screenCenter) < (screenWidth * 0.20f)
-
-      if (isCenterCutout) {
-        currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        // Center gravity already centers the overlay window. Keep X independent
-        // of the animated width so expanding does not move the capsule sideways.
-        currentParams.x = (cfg.offsetX * density).toInt()
-        // Anchor the window to the collapsed pill's vertical center for BOTH
-        // states. The expanded card grows downward from this same top coordinate,
-        // preventing the whole overlay from jumping when its width/height changes.
-        val collapsedHeightPx = (cfg.collapsedHeightDp * density).toInt()
-        val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
-        val anchorTop = cutout.centerY() - collapsedHeightPx / 2
-        currentParams.y = (anchorTop + verticalFineTunePx).coerceAtLeast(0)
-      } else if (cutoutCenterX < screenWidth / 2) {
-        currentParams.gravity = Gravity.TOP or Gravity.START
-        val targetX = (cutoutCenterX - (currentWidthDp * density / 2)).toInt()
-        currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        // Anchor the window to the collapsed pill's vertical center for BOTH
-        // states. The expanded card grows downward from this same top coordinate,
-        // preventing the whole overlay from jumping when its width/height changes.
-        val collapsedHeightPx = (cfg.collapsedHeightDp * density).toInt()
-        val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
-        val anchorTop = cutout.centerY() - collapsedHeightPx / 2
-        currentParams.y = (anchorTop + verticalFineTunePx).coerceAtLeast(0)
-      } else {
-        currentParams.gravity = Gravity.TOP or Gravity.END
-        val distanceFromRight = screenWidth - cutoutCenterX
-        val targetX = (distanceFromRight - (currentWidthDp * density / 2)).toInt()
-        currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        // Anchor the window to the collapsed pill's vertical center for BOTH
-        // states. The expanded card grows downward from this same top coordinate,
-        // preventing the whole overlay from jumping when its width/height changes.
-        val collapsedHeightPx = (cfg.collapsedHeightDp * density).toInt()
-        val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
-        val anchorTop = cutout.centerY() - collapsedHeightPx / 2
-        currentParams.y = (anchorTop + verticalFineTunePx).coerceAtLeast(0)
-      }
+      val statusBarTop = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        try {
+          windowManager?.currentWindowMetrics?.windowInsets
+            ?.getInsets(android.view.WindowInsets.Type.statusBars())?.top ?: 0
+        } catch (_: Exception) { 0 }
+      } else 0
+      val cutoutTop = cutout?.takeIf {
+        it.top >= 0 && it.top < statusBarTop + (48f * density).toInt()
+      }?.top
+      val targetTop = cutoutTop ?: statusBarTop
+      currentParams.y = (targetTop + ((cfg.offsetY - 12) * density).toInt()).coerceAtLeast(0)
     } else {
       val g = when (cfg.position) {
         CapsulePosition.LEFT -> Gravity.TOP or Gravity.START
