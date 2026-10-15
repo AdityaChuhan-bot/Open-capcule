@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -105,7 +106,13 @@ fun OpenCapsuleDynamicView(
     }
   }
 
-  val targetWidth = if (isExpanded) config.expandedWidthDp.dp else config.collapsedWidthDp.dp
+  val screenWidthDp = LocalConfiguration.current.screenWidthDp
+  val maxUsableWidthDp = (screenWidthDp - 24).coerceAtLeast(1)
+  val targetWidth = if (isExpanded) {
+    config.expandedWidthDp.coerceAtMost(maxUsableWidthDp).dp
+  } else {
+    config.collapsedWidthDp.coerceAtMost(maxUsableWidthDp).dp
+  }
   val targetHeight = if (isExpanded) config.expandedHeightDp.dp else config.collapsedHeightDp.dp
   val targetCornerRadius = if (isExpanded) 28.dp else config.cornerRadiusDp.dp
 
