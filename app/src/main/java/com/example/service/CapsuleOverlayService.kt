@@ -445,7 +445,14 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
     val currentWidthDp = if (isExpanded) cfg.expandedWidthDp else cfg.collapsedWidthDp
     val cutout = detectedCutoutRect
-    if (cfg.autoAlignCutout && cutout != null) {
+    if (cfg.autoAlignCutout && cutout == null) {
+      // Insets/cutout bounds are not consistently delivered to TYPE_APPLICATION_OVERLAY
+      // on some Android 16 OEM builds. The Moto G85 has a centered punch-hole, so
+      // use a deterministic centered top anchor instead of falling back to LEFT.
+      currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+      currentParams.x = (cfg.offsetX * density).toInt()
+      currentParams.y = ((cfg.offsetY - 12) * density).toInt().coerceAtLeast(0)
+    } else if (cfg.autoAlignCutout && cutout != null) {
       val cutoutCenterX = cutout.centerX()
       val screenCenter = screenWidth / 2
       // The Moto G85 uses a centered punch-hole. Cutout bounds and WindowMetrics
