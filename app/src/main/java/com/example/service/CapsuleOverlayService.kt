@@ -19,6 +19,7 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
+import android.view.ViewConfiguration
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
@@ -317,8 +318,40 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         var touchStartY = 0f
         var touchStartX = 0f
         var isTrackingSwipe = false
+        var collapsedDownX = 0f
+        var collapsedDownY = 0f
+        var trackingCollapsedTap = false
+        val tapSlop = ViewConfiguration.get(this@CapsuleOverlayService).scaledTouchSlop
 
         setOnTouchListener { _, event ->
+          // Handle collapsed-pill taps at the overlay root. Some OEM window managers
+          // deliver overlay touch events inconsistently to Compose clickable modifiers.
+          if (!CapsuleManager.isExpanded.value && event.actionMasked != MotionEvent.ACTION_OUTSIDE) {
+            when (event.actionMasked) {
+              MotionEvent.ACTION_DOWN -> {
+                collapsedDownX = event.rawX
+                collapsedDownY = event.rawY
+                trackingCollapsedTap = true
+                return@setOnTouchListener true
+              }
+              MotionEvent.ACTION_MOVE -> {
+                if (trackingCollapsedTap) return@setOnTouchListener true
+              }
+              MotionEvent.ACTION_UP -> {
+                val isTap = trackingCollapsedTap &&
+                  kotlin.math.abs(event.rawX - collapsedDownX) <= tapSlop &&
+                  kotlin.math.abs(event.rawY - collapsedDownY) <= tapSlop
+                trackingCollapsedTap = false
+                if (isTap) CapsuleManager.expandCapsule()
+                return@setOnTouchListener true
+              }
+              MotionEvent.ACTION_CANCEL -> {
+                trackingCollapsedTap = false
+                return@setOnTouchListener true
+              }
+            }
+          }
+
           // Tap outside the overlay window dismisses the expanded capsule
           if (event.action == MotionEvent.ACTION_OUTSIDE) {
             if (CapsuleManager.isExpanded.value) {
@@ -438,24 +471,30 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         // Gravity.CENTER_HORIZONTAL interprets x as an offset from screen center,
         // not as an absolute left coordinate. Keep the capsule centered on the hole.
         currentParams.x = (cutoutCenterX - screenCenter) + (cfg.offsetX * density).toInt()
-        val capsuleHeightPx = (cfg.collapsedHeightDp * density).toInt()
-        val baseTop = (cutout.centerY() - capsuleHeightPx / 2).coerceAtLeast(0)
-        currentParams.y = baseTop + (cfg.offsetY * density).toInt()
+        // offsetY=12 was the legacy default; treat it as the zero-adjustment
+        // baseline so existing preferences align to the physical cutout instead
+        // of placing the pill a full 12dp below it.
+        val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
+        currentParams.y = (cutout.top + verticalFineTunePx).coerceAtLeast(0)
       } else if (cutoutCenterX < screenWidth / 2) {
         currentParams.gravity = Gravity.TOP or Gravity.START
         val targetX = (cutoutCenterX - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        val capsuleHeightPx = (cfg.collapsedHeightDp * density).toInt()
-        val baseTop = (cutout.centerY() - capsuleHeightPx / 2).coerceAtLeast(0)
-        currentParams.y = baseTop + (cfg.offsetY * density).toInt()
+        // offsetY=12 was the legacy default; treat it as the zero-adjustment
+        // baseline so existing preferences align to the physical cutout instead
+        // of placing the pill a full 12dp below it.
+        val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
+        currentParams.y = (cutout.top + verticalFineTunePx).coerceAtLeast(0)
       } else {
         currentParams.gravity = Gravity.TOP or Gravity.END
         val distanceFromRight = screenWidth - cutoutCenterX
         val targetX = (distanceFromRight - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        val capsuleHeightPx = (cfg.collapsedHeightDp * density).toInt()
-        val baseTop = (cutout.centerY() - capsuleHeightPx / 2).coerceAtLeast(0)
-        currentParams.y = baseTop + (cfg.offsetY * density).toInt()
+        // offsetY=12 was the legacy default; treat it as the zero-adjustment
+        // baseline so existing preferences align to the physical cutout instead
+        // of placing the pill a full 12dp below it.
+        val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
+        currentParams.y = (cutout.top + verticalFineTunePx).coerceAtLeast(0)
       }
     } else {
       val g = when (cfg.position) {
