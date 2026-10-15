@@ -247,7 +247,8 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             val cutout = insets.displayCutout
             if (cutout != null) {
               val rects = cutout.boundingRects
-              val topRect = rects.firstOrNull { it.top <= 120 } ?: rects.firstOrNull()
+              val topLimitPx = (64f * resources.displayMetrics.density).toInt()
+              val topRect = rects.firstOrNull { it.top <= topLimitPx } ?: rects.minByOrNull { it.top }
               if (topRect != null && topRect != detectedCutoutRect) {
                 detectedCutoutRect = topRect
                 updateOverlayLayout()
@@ -373,6 +374,9 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       composeView = view
 
       windowManager?.addView(view, params)
+      // Some OEMs do not dispatch cutout insets until the overlay is attached.
+      view.requestApplyInsets()
+      view.post { updateOverlayLayout() }
       Log.d(TAG, "Overlay ComposeView successfully attached to WindowManager")
     } catch (e: Exception) {
       Log.e(TAG, "Failed to initialize overlay ComposeView", e)
@@ -399,7 +403,10 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     val isExpanded = CapsuleManager.isExpanded.value
     val displayMetrics = resources.displayMetrics
     val density = displayMetrics.density
-    val screenWidth = displayMetrics.widthPixels
+    val screenWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      try { windowManager?.currentWindowMetrics?.bounds?.width() ?: displayMetrics.widthPixels }
+      catch (_: Exception) { displayMetrics.widthPixels }
+    } else displayMetrics.widthPixels
 
     val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
       WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
@@ -428,21 +435,26 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
       if (isCenterCutout) {
         currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        currentParams.x = (cfg.offsetX * density).toInt()
-        val baseTop = cutout.top.coerceAtLeast(0)
+        // Gravity.CENTER_HORIZONTAL interprets x as an offset from screen center,
+        // not as an absolute left coordinate. Keep the capsule centered on the hole.
+        currentParams.x = (cutoutCenterX - screenCenter) + (cfg.offsetX * density).toInt()
+        val capsuleHeightPx = (cfg.collapsedHeightDp * density).toInt()
+        val baseTop = (cutout.centerY() - capsuleHeightPx / 2).coerceAtLeast(0)
         currentParams.y = baseTop + (cfg.offsetY * density).toInt()
       } else if (cutoutCenterX < screenWidth / 2) {
         currentParams.gravity = Gravity.TOP or Gravity.START
         val targetX = (cutoutCenterX - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        val baseTop = cutout.top.coerceAtLeast(0)
+        val capsuleHeightPx = (cfg.collapsedHeightDp * density).toInt()
+        val baseTop = (cutout.centerY() - capsuleHeightPx / 2).coerceAtLeast(0)
         currentParams.y = baseTop + (cfg.offsetY * density).toInt()
       } else {
         currentParams.gravity = Gravity.TOP or Gravity.END
         val distanceFromRight = screenWidth - cutoutCenterX
         val targetX = (distanceFromRight - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        val baseTop = cutout.top.coerceAtLeast(0)
+        val capsuleHeightPx = (cfg.collapsedHeightDp * density).toInt()
+        val baseTop = (cutout.centerY() - capsuleHeightPx / 2).coerceAtLeast(0)
         currentParams.y = baseTop + (cfg.offsetY * density).toInt()
       }
     } else {
