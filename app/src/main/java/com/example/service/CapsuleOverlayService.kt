@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
@@ -66,6 +67,42 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
   private var windowParams: WindowManager.LayoutParams? = null
   private var systemEventsRegistrar: SystemEventsRegistrar? = null
   private var detectedCutoutRect: Rect? = null
+
+  /**
+   * Callback invoked when a tap occurs outside the expanded capsule overlay window.
+   * Default implementation collapses the capsule.
+   */
+  var onOutsideTapCallback: (() -> Unit)? = {
+    CapsuleManager.collapseCapsule()
+  }
+
+  /**
+   * Callback invoked when a swipe-up gesture is detected to collapse the expanded capsule.
+   * Default implementation collapses the capsule.
+   */
+  var onSwipeUpCallback: (() -> Unit)? = {
+    CapsuleManager.collapseCapsule()
+  }
+
+  fun setOnOutsideTapListener(callback: () -> Unit) {
+    onOutsideTapCallback = callback
+  }
+
+  fun setOnSwipeUpListener(callback: () -> Unit) {
+    onSwipeUpCallback = callback
+  }
+
+  fun handleOutsideTap() {
+    Log.d(TAG, "Dismissing expanded capsule from outside tap")
+    onOutsideTapCallback?.invoke()
+    globalOnOutsideTapCallback?.invoke()
+  }
+
+  fun handleSwipeUp() {
+    Log.d(TAG, "Collapsing expanded capsule from swipe-up gesture")
+    onSwipeUpCallback?.invoke()
+    globalOnSwipeUpCallback?.invoke()
+  }
 
   override val lifecycle: Lifecycle get() = lifecycleRegistry
   override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
@@ -230,18 +267,105 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
                 isExpanded = isExpanded,
                 config = config,
                 onToggleExpand = { CapsuleManager.toggleExpand() },
-                onCollapse = { CapsuleManager.collapseCapsule() }
+                onCollapse = { handleSwipeUp() }
               )
             }
           }
         }
-        setOnTouchListener { _, event ->
-          if (event.action == MotionEvent.ACTION_OUTSIDE && CapsuleManager.isExpanded.value) {
-            CapsuleManager.collapseCapsule()
-            true
-          } else {
-            false
+
+        // GestureDetector for detecting swipe-up gestures to collapse the capsule
+        val gestureDetector = GestureDetector(
+          this@CapsuleOverlayService,
+          object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(
+              e1: MotionEvent?,
+              e2: MotionEvent,
+              velocityX: Float,
+              velocityY: Float
+            ): Boolean {
+              if (CapsuleManager.isExpanded.value && e1 != null) {
+                val deltaY = e2.y - e1.y
+                val deltaX = e2.x - e1.x
+                // Fast upward flick
+                if (deltaY < -20f && Math.abs(deltaY) > Math.abs(deltaX) && velocityY < -80f) {
+                  handleSwipeUp()
+                  return true
+                }
+              }
+              return false
+            }
+
+            override fun onScroll(
+              e1: MotionEvent?,
+              e2: MotionEvent,
+              distanceX: Float,
+              distanceY: Float
+            ): Boolean {
+              // Upward scrolling/drag
+              if (CapsuleManager.isExpanded.value && distanceY > 25f && Math.abs(distanceY) > Math.abs(distanceX)) {
+                handleSwipeUp()
+                return true
+              }
+              return false
+            }
           }
+        )
+
+        var touchStartY = 0f
+        var touchStartX = 0f
+        var isTrackingSwipe = false
+
+        setOnTouchListener { _, event ->
+          // Tap outside the overlay window dismisses the expanded capsule
+          if (event.action == MotionEvent.ACTION_OUTSIDE) {
+            if (CapsuleManager.isExpanded.value) {
+              handleOutsideTap()
+              return@setOnTouchListener true
+            }
+            return@setOnTouchListener false
+          }
+
+          // Gesture & touch tracking for swipe-up collapse when expanded
+          if (CapsuleManager.isExpanded.value) {
+            if (gestureDetector.onTouchEvent(event)) {
+              return@setOnTouchListener true
+            }
+
+            val density = resources.displayMetrics.density
+            val minSwipeDist = 24f * density
+
+            when (event.actionMasked) {
+              MotionEvent.ACTION_DOWN -> {
+                touchStartY = event.rawY
+                touchStartX = event.rawX
+                isTrackingSwipe = true
+              }
+              MotionEvent.ACTION_MOVE -> {
+                if (isTrackingSwipe) {
+                  val diffY = event.rawY - touchStartY
+                  val diffX = event.rawX - touchStartX
+                  if (diffY < -minSwipeDist && Math.abs(diffY) > Math.abs(diffX) * 1.1f) {
+                    isTrackingSwipe = false
+                    handleSwipeUp()
+                    return@setOnTouchListener true
+                  }
+                }
+              }
+              MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (isTrackingSwipe) {
+                  val diffY = event.rawY - touchStartY
+                  val diffX = event.rawX - touchStartX
+                  if (diffY < -minSwipeDist && Math.abs(diffY) > Math.abs(diffX)) {
+                    isTrackingSwipe = false
+                    handleSwipeUp()
+                    return@setOnTouchListener true
+                  }
+                }
+                isTrackingSwipe = false
+              }
+            }
+          }
+          false
         }
       }
       composeView = view
@@ -376,6 +500,21 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         action = ACTION_STOP
       }
       context.startService(intent)
+    }
+
+    /**
+     * Global callbacks for outside taps and swipe-up gestures, allowing app activities
+     * or testing frameworks to listen for overlay interaction events.
+     */
+    var globalOnOutsideTapCallback: (() -> Unit)? = null
+    var globalOnSwipeUpCallback: (() -> Unit)? = null
+
+    fun setGlobalOutsideTapListener(callback: () -> Unit) {
+      globalOnOutsideTapCallback = callback
+    }
+
+    fun setGlobalSwipeUpListener(callback: () -> Unit) {
+      globalOnSwipeUpCallback = callback
     }
   }
 }
