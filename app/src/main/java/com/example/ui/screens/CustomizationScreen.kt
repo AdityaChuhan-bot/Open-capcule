@@ -147,17 +147,17 @@ fun CustomizationScreen(
           label = "Horizontal Offset (X)",
           valueText = "${config.offsetX} dp",
           value = config.offsetX.toFloat(),
-          valueRange = -60f..60f,
+          valueRange = -120f..120f,
           onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(offsetX = it.toInt()) } }
         )
 
         // Vertical Offset Slider
         SettingSlider(
           label = "Vertical Offset (Y)",
-          valueText = "${config.offsetY} dp",
-          value = config.offsetY.toFloat(),
-          valueRange = 0f..60f,
-          onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(offsetY = it.toInt()) } }
+          valueText = "${config.offsetY - 12} dp",
+          value = (config.offsetY - 12).toFloat(),
+          valueRange = -12f..88f,
+          onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(offsetY = it.toInt() + 12) } }
         )
       }
     }
@@ -180,7 +180,7 @@ fun CustomizationScreen(
           label = "Collapsed Pill Width",
           valueText = "${config.collapsedWidthDp} dp",
           value = config.collapsedWidthDp.toFloat(),
-          valueRange = 100f..220f,
+          valueRange = 80f..260f,
           onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(collapsedWidthDp = it.toInt()) } }
         )
 
@@ -188,7 +188,7 @@ fun CustomizationScreen(
           label = "Collapsed Pill Height",
           valueText = "${config.collapsedHeightDp} dp",
           value = config.collapsedHeightDp.toFloat(),
-          valueRange = 28f..50f,
+          valueRange = 24f..64f,
           onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(collapsedHeightDp = it.toInt()) } }
         )
 
@@ -196,7 +196,7 @@ fun CustomizationScreen(
           label = "Expanded Card Width",
           valueText = "${config.expandedWidthDp} dp",
           value = config.expandedWidthDp.toFloat(),
-          valueRange = 280f..380f,
+          valueRange = 240f..420f,
           onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(expandedWidthDp = it.toInt()) } }
         )
 
@@ -204,7 +204,7 @@ fun CustomizationScreen(
           label = "Expanded Card Height",
           valueText = "${config.expandedHeightDp} dp",
           value = config.expandedHeightDp.toFloat(),
-          valueRange = 120f..220f,
+          valueRange = 100f..360f,
           onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(expandedHeightDp = it.toInt()) } }
         )
 
@@ -212,7 +212,7 @@ fun CustomizationScreen(
           label = "Corner Radius",
           valueText = "${config.cornerRadiusDp} dp",
           value = config.cornerRadiusDp.toFloat(),
-          valueRange = 12f..30f,
+          valueRange = 8f..36f,
           onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(cornerRadiusDp = it.toInt()) } }
         )
       }
