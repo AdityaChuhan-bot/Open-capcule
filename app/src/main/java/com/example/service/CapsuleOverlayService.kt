@@ -19,7 +19,6 @@ import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
-import android.view.ViewConfiguration
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
@@ -318,38 +317,23 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         var touchStartY = 0f
         var touchStartX = 0f
         var isTrackingSwipe = false
-        var collapsedDownX = 0f
-        var collapsedDownY = 0f
         var trackingCollapsedTap = false
-        val tapSlop = ViewConfiguration.get(this@CapsuleOverlayService).scaledTouchSlop
 
         setOnTouchListener { _, event ->
-          // Handle collapsed-pill taps at the overlay root. Some OEM window managers
-          // deliver overlay touch events inconsistently to Compose clickable modifiers.
-          if (!CapsuleManager.isExpanded.value && event.actionMasked != MotionEvent.ACTION_OUTSIDE) {
-            when (event.actionMasked) {
-              MotionEvent.ACTION_DOWN -> {
-                collapsedDownX = event.rawX
-                collapsedDownY = event.rawY
-                trackingCollapsedTap = true
-                return@setOnTouchListener true
-              }
-              MotionEvent.ACTION_MOVE -> {
-                if (trackingCollapsedTap) return@setOnTouchListener true
-              }
-              MotionEvent.ACTION_UP -> {
-                val isTap = trackingCollapsedTap &&
-                  kotlin.math.abs(event.rawX - collapsedDownX) <= tapSlop &&
-                  kotlin.math.abs(event.rawY - collapsedDownY) <= tapSlop
-                trackingCollapsedTap = false
-                if (isTap) CapsuleManager.expandCapsule()
-                return@setOnTouchListener true
-              }
-              MotionEvent.ACTION_CANCEL -> {
-                trackingCollapsedTap = false
-                return@setOnTouchListener true
-              }
+          // Once the idle pill receives ACTION_DOWN, consume the complete gesture.
+          // Expand immediately so a relayout/recomposition cannot cancel the tap
+          // before ACTION_UP on OEM overlay implementations.
+          if (trackingCollapsedTap) {
+            if (event.actionMasked == MotionEvent.ACTION_UP ||
+                event.actionMasked == MotionEvent.ACTION_CANCEL) {
+              trackingCollapsedTap = false
             }
+            return@setOnTouchListener true
+          }
+          if (!CapsuleManager.isExpanded.value && event.actionMasked == MotionEvent.ACTION_DOWN) {
+            trackingCollapsedTap = true
+            CapsuleManager.expandCapsule()
+            return@setOnTouchListener true
           }
 
           // Tap outside the overlay window dismisses the expanded capsule
@@ -464,13 +448,16 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     if (cfg.autoAlignCutout && cutout != null) {
       val cutoutCenterX = cutout.centerX()
       val screenCenter = screenWidth / 2
-      val isCenterCutout = Math.abs(cutoutCenterX - screenCenter) < (48 * density)
+      // The Moto G85 uses a centered punch-hole. Cutout bounds and WindowMetrics
+      // can use slightly different coordinate origins on Android 16, so use a
+      // proportional tolerance and center gravity to avoid width-dependent jumps.
+      val isCenterCutout = Math.abs(cutoutCenterX - screenCenter) < (screenWidth * 0.20f)
 
       if (isCenterCutout) {
         currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        // Gravity.CENTER_HORIZONTAL interprets x as an offset from screen center,
-        // not as an absolute left coordinate. Keep the capsule centered on the hole.
-        currentParams.x = (cutoutCenterX - screenCenter) + (cfg.offsetX * density).toInt()
+        // Center gravity already centers the overlay window. Keep X independent
+        // of the animated width so expanding does not move the capsule sideways.
+        currentParams.x = (cfg.offsetX * density).toInt()
         // offsetY=12 was the legacy default; treat it as the zero-adjustment
         // baseline so existing preferences align to the physical cutout instead
         // of placing the pill a full 12dp below it.
