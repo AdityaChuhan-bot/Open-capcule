@@ -458,30 +458,36 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
         // Center gravity already centers the overlay window. Keep X independent
         // of the animated width so expanding does not move the capsule sideways.
         currentParams.x = (cfg.offsetX * density).toInt()
-        // offsetY=12 was the legacy default; treat it as the zero-adjustment
-        // baseline so existing preferences align to the physical cutout instead
-        // of placing the pill a full 12dp below it.
+        // Anchor the window to the collapsed pill's vertical center for BOTH
+        // states. The expanded card grows downward from this same top coordinate,
+        // preventing the whole overlay from jumping when its width/height changes.
+        val collapsedHeightPx = (cfg.collapsedHeightDp * density).toInt()
         val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
-        currentParams.y = (cutout.top + verticalFineTunePx).coerceAtLeast(0)
+        val anchorTop = cutout.centerY() - collapsedHeightPx / 2
+        currentParams.y = (anchorTop + verticalFineTunePx).coerceAtLeast(0)
       } else if (cutoutCenterX < screenWidth / 2) {
         currentParams.gravity = Gravity.TOP or Gravity.START
         val targetX = (cutoutCenterX - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        // offsetY=12 was the legacy default; treat it as the zero-adjustment
-        // baseline so existing preferences align to the physical cutout instead
-        // of placing the pill a full 12dp below it.
+        // Anchor the window to the collapsed pill's vertical center for BOTH
+        // states. The expanded card grows downward from this same top coordinate,
+        // preventing the whole overlay from jumping when its width/height changes.
+        val collapsedHeightPx = (cfg.collapsedHeightDp * density).toInt()
         val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
-        currentParams.y = (cutout.top + verticalFineTunePx).coerceAtLeast(0)
+        val anchorTop = cutout.centerY() - collapsedHeightPx / 2
+        currentParams.y = (anchorTop + verticalFineTunePx).coerceAtLeast(0)
       } else {
         currentParams.gravity = Gravity.TOP or Gravity.END
         val distanceFromRight = screenWidth - cutoutCenterX
         val targetX = (distanceFromRight - (currentWidthDp * density / 2)).toInt()
         currentParams.x = targetX.coerceAtLeast(0) + (cfg.offsetX * density).toInt()
-        // offsetY=12 was the legacy default; treat it as the zero-adjustment
-        // baseline so existing preferences align to the physical cutout instead
-        // of placing the pill a full 12dp below it.
+        // Anchor the window to the collapsed pill's vertical center for BOTH
+        // states. The expanded card grows downward from this same top coordinate,
+        // preventing the whole overlay from jumping when its width/height changes.
+        val collapsedHeightPx = (cfg.collapsedHeightDp * density).toInt()
         val verticalFineTunePx = ((cfg.offsetY - 12) * density).toInt()
-        currentParams.y = (cutout.top + verticalFineTunePx).coerceAtLeast(0)
+        val anchorTop = cutout.centerY() - collapsedHeightPx / 2
+        currentParams.y = (anchorTop + verticalFineTunePx).coerceAtLeast(0)
       }
     } else {
       val g = when (cfg.position) {
