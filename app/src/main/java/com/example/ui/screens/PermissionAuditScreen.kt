@@ -233,6 +233,21 @@ fun PermissionAuditScreen(
               }
             }
           }
+
+          if (!isGranted && item.technicalId == "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE") {
+            Box(
+              modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF1E293B), RoundedCornerShape(8.dp))
+                .padding(8.dp)
+            ) {
+              Text(
+                text = "💡 Sideload Notice (Android 13+): If Notification Access toggle is grayed out or restricted by Android, go to Settings → Apps → OpenCapsule → tap the 3 dots (⋮) in the top-right corner → tap 'Allow restricted settings'. Then return to grant Notification Access.",
+                fontSize = 11.sp,
+                color = Color(0xFF93C5FD)
+              )
+            }
+          }
         }
       }
     }

@@ -482,7 +482,16 @@ fun DashboardScreen(
     AlertDialog(
       onDismissRequest = { showNotifDisclosure = false },
       title = { Text(context.getString(R.string.notification_disclosure_title)) },
-      text = { Text(context.getString(R.string.notification_disclosure_body)) },
+      text = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Text(context.getString(R.string.notification_disclosure_body))
+          Text(
+            text = "Note for Android 13+: If the toggle is restricted/grayed out in settings, go to Android Settings > Apps > OpenCapsule > 3 dots (⋮) in top-right > 'Allow restricted settings'.",
+            style = MaterialTheme.typography.bodySmall,
+            color = PrimaryBlue
+          )
+        }
+      },
       confirmButton = {
         Button(
           onClick = {
