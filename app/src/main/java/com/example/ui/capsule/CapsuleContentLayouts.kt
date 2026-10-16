@@ -545,11 +545,25 @@ fun IdleQuickControlCenter(
           .background(PrimaryBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
           .clip(RoundedCornerShape(10.dp))
           .clickable {
-            try {
-              val intent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_APP_MUSIC)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            // Prefer the user's requested music app instead of Android's generic
+            // CATEGORY_APP_MUSIC resolver (which may open another player).
+            val echoMusicIntent = context.packageManager.getInstalledApplications(0)
+              .asSequence()
+              .mapNotNull { appInfo ->
+                val label = context.packageManager.getApplicationLabel(appInfo).toString()
+                val normalized = label.lowercase()
+                if (normalized.contains("echo") && normalized.contains("music")) {
+                  context.packageManager.getLaunchIntentForPackage(appInfo.packageName)
+                } else null
               }
+              .firstOrNull()
+
+            val intent = echoMusicIntent ?: Intent(Intent.ACTION_MAIN).apply {
+              addCategory(Intent.CATEGORY_APP_MUSIC)
+              flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
               context.startActivity(intent)
             } catch (_: Exception) {
               try {
