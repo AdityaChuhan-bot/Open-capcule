@@ -44,6 +44,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.model.AnimationSpeed
@@ -168,6 +172,10 @@ fun OpenCapsuleDynamicView(
             }
           }
         }
+      }
+      .semantics {
+        contentDescription = if (isExpanded) "OpenCapsule expanded" else "OpenCapsule idle, tap to expand"
+        if (!isExpanded) role = Role.Button
       }
       .testTag("open_capsule_main_view"),
     color = backgroundColor,
