@@ -40,10 +40,23 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
 
   private val sessionsChangedListener = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
     activeMediaController?.unregisterCallback(mediaCallback)
-    activeMediaController = controllers?.firstOrNull()
+    // Prefer Echo Music when it has an active media session; otherwise keep
+    // the existing behavior and use the first active session.
+    activeMediaController = controllers?.firstOrNull { isEchoMusicPackage(it.packageName) }
+      ?: controllers?.firstOrNull()
     activeMediaController?.registerCallback(mediaCallback)
     registerMediaActionHandler(activeMediaController)
     updateMediaFromController(activeMediaController)
+  }
+
+  private fun isEchoMusicPackage(packageName: String): Boolean {
+    val appLabel = try {
+      packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
+    } catch (_: Exception) {
+      ""
+    }
+    val identity = "$packageName $appLabel".lowercase()
+    return identity.contains("echo") && identity.contains("music")
   }
 
   private fun registerMediaActionHandler(controller: MediaController?) {
@@ -89,7 +102,8 @@ class CapsuleNotificationListenerService : NotificationListenerService() {
       mediaSessionManager = getSystemService(MEDIA_SESSION_SERVICE) as? MediaSessionManager
       val component = ComponentName(this, CapsuleNotificationListenerService::class.java)
       val sessions = mediaSessionManager?.getActiveSessions(component)
-      activeMediaController = sessions?.firstOrNull()
+      activeMediaController = sessions?.firstOrNull { isEchoMusicPackage(it.packageName) }
+        ?: sessions?.firstOrNull()
       activeMediaController?.registerCallback(mediaCallback)
       mediaSessionManager?.addOnActiveSessionsChangedListener(sessionsChangedListener, component)
       registerMediaActionHandler(activeMediaController)
