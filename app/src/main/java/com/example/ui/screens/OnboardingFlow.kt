@@ -92,10 +92,7 @@ fun OnboardingFlow(
   // Step 3 feature states
   var notifSelected by remember { mutableStateOf(config.featureNotifications) }
   var mediaSelected by remember { mutableStateOf(config.featureMedia) }
-  var callSelected by remember { mutableStateOf(config.featureCalls) }
   var chargeSelected by remember { mutableStateOf(config.featureCharging) }
-  var timerSelected by remember { mutableStateOf(config.featureTimers) }
-  var btSelected by remember { mutableStateOf(config.featureBluetooth) }
 
   Surface(
     modifier = modifier.fillMaxSize(),
@@ -148,10 +145,7 @@ fun OnboardingFlow(
             2 -> OnboardingStepFeatures(
               notif = notifSelected, onNotif = { notifSelected = it },
               media = mediaSelected, onMedia = { mediaSelected = it },
-              call = callSelected, onCall = { callSelected = it },
-              charge = chargeSelected, onCharge = { chargeSelected = it },
-              timer = timerSelected, onTimer = { timerSelected = it },
-              bt = btSelected, onBt = { btSelected = it }
+              charge = chargeSelected, onCharge = { chargeSelected = it }
             )
             3 -> OnboardingStepPermissions(context = context)
             else -> OnboardingStepIntro()
@@ -187,10 +181,7 @@ fun OnboardingFlow(
                   it.copy(
                     featureNotifications = notifSelected,
                     featureMedia = mediaSelected,
-                    featureCalls = callSelected,
-                    featureCharging = chargeSelected,
-                    featureTimers = timerSelected,
-                    featureBluetooth = btSelected
+                    featureCharging = chargeSelected
                   )
                 }
               }
@@ -382,10 +373,7 @@ private fun PrivacyPillar(title: String, description: String) {
 private fun OnboardingStepFeatures(
   notif: Boolean, onNotif: (Boolean) -> Unit,
   media: Boolean, onMedia: (Boolean) -> Unit,
-  call: Boolean, onCall: (Boolean) -> Unit,
-  charge: Boolean, onCharge: (Boolean) -> Unit,
-  timer: Boolean, onTimer: (Boolean) -> Unit,
-  bt: Boolean, onBt: (Boolean) -> Unit
+  charge: Boolean, onCharge: (Boolean) -> Unit
 ) {
   Column(
     modifier = Modifier
@@ -408,10 +396,7 @@ private fun OnboardingStepFeatures(
 
     FeatureCheckboxRow("Notifications", "Selected incoming app alerts", Icons.Default.Notifications, notif, onNotif)
     FeatureCheckboxRow("Media Controls", "Active music artwork and player", Icons.Default.MusicNote, media, onMedia)
-    FeatureCheckboxRow("Phone Calls", "Ongoing call duration banner", Icons.Default.Call, call, onCall)
     FeatureCheckboxRow("Battery & Charging", "Plugged in, fast charging and full alerts", Icons.Default.BatteryChargingFull, charge, onCharge)
-    FeatureCheckboxRow("Timers & Stopwatch", "Countdowns and stopwatch presentation", Icons.Default.HourglassBottom, timer, onTimer)
-    FeatureCheckboxRow("Bluetooth Accessories", "Headset connection status", Icons.Default.Bluetooth, bt, onBt)
   }
 }
 

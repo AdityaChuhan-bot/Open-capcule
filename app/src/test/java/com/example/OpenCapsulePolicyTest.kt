@@ -44,24 +44,16 @@ class OpenCapsulePolicyTest {
 
   @Test
   fun testCapsuleEventPriorityOrder() {
-    val incomingCall = CapsuleEvent.Call(callerName = "Alice", state = CapsuleEvent.CallState.INCOMING)
-    val ongoingCall = CapsuleEvent.Call(callerName = "Alice", state = CapsuleEvent.CallState.ONGOING)
-    val timer = CapsuleEvent.Timer(remainingSeconds = 30, totalSeconds = 60)
-    val media = CapsuleEvent.Media(title = "Track", artist = "Artist")
     val charging = CapsuleEvent.Charging(batteryPercent = 85, isCharging = true)
     val notif = CapsuleEvent.Notification(id = "1", title = "Alert", content = "Message", appName = "App", packageName = "com.test")
-    val bluetooth = CapsuleEvent.Bluetooth(deviceName = "Headphones", isConnected = true)
+    val media = CapsuleEvent.Media(title = "Track", artist = "Artist")
 
-    val events = listOf(bluetooth, notif, charging, media, timer, ongoingCall, incomingCall)
+    val events = listOf(media, notif, charging)
     val sorted = events.sortedBy { it.priority }
 
-    assertEquals(incomingCall.id, sorted[0].id)
-    assertEquals(ongoingCall.id, sorted[1].id)
-    assertEquals(timer.id, sorted[2].id)
-    assertEquals(media.id, sorted[3].id)
-    assertEquals(charging.id, sorted[4].id)
-    assertEquals(notif.id, sorted[5].id)
-    assertEquals(bluetooth.id, sorted[6].id)
+    assertEquals(charging.id, sorted[0].id)
+    assertEquals(notif.id, sorted[1].id)
+    assertEquals(media.id, sorted[2].id)
   }
 
   @Test
@@ -131,6 +123,10 @@ class OpenCapsulePolicyTest {
     assertTrue("Swipe-up to collapse should be enabled by default", defaultConfig.swipeUpToCollapseEnabled)
     assertTrue("Tap outside to dismiss should be enabled by default", defaultConfig.tapOutsideToDismissEnabled)
     assertTrue("Haptic feedback should be enabled by default", defaultConfig.hapticFeedbackEnabled)
+    assertEquals(20, defaultConfig.expandedOffsetYExtraDp)
+    assertTrue("Compact idle notch should be enabled by default", defaultConfig.compactIdleNotch)
+    assertEquals(36, defaultConfig.idleWidthDp)
+    assertEquals(36, defaultConfig.idleHeightDp)
 
     val customConfig = defaultConfig.copy(
       animationsEnabled = false,
@@ -138,7 +134,10 @@ class OpenCapsulePolicyTest {
       animationStyle = com.example.model.AnimationStyle.FADE,
       expansionBehavior = com.example.model.ExpansionBehavior.DOWNWARD_EXPAND,
       swipeUpToCollapseEnabled = false,
-      tapOutsideToDismissEnabled = false
+      tapOutsideToDismissEnabled = false,
+      expandedOffsetYExtraDp = 30,
+      compactIdleNotch = false,
+      idleWidthDp = 42
     )
 
     assertFalse(customConfig.animationsEnabled)
@@ -147,6 +146,9 @@ class OpenCapsulePolicyTest {
     assertEquals(com.example.model.ExpansionBehavior.DOWNWARD_EXPAND, customConfig.expansionBehavior)
     assertFalse(customConfig.swipeUpToCollapseEnabled)
     assertFalse(customConfig.tapOutsideToDismissEnabled)
+    assertEquals(30, customConfig.expandedOffsetYExtraDp)
+    assertFalse(customConfig.compactIdleNotch)
+    assertEquals(42, customConfig.idleWidthDp)
   }
 }
 

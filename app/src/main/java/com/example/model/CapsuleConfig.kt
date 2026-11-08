@@ -43,8 +43,12 @@ data class CapsuleConfig(
   val offsetY: Int = 12, // legacy baseline maps to 0dp vertical fine-tune
   val collapsedWidthDp: Int = 140,
   val collapsedHeightDp: Int = 36,
+  val compactIdleNotch: Boolean = true,
+  val idleWidthDp: Int = 36, // Exact fit for Moto G85 5G front camera punch-hole (prevents status-bar text/speed meter overlap)
+  val idleHeightDp: Int = 36,
   val expandedWidthDp: Int = 340,
   val expandedHeightDp: Int = 150,
+  val expandedOffsetYExtraDp: Int = 20, // Extra vertical drop when expanded so it sits lower and clears camera notch
   val cornerRadiusDp: Int = 22,
 
   // Customizable Animation Options
@@ -67,16 +71,12 @@ data class CapsuleConfig(
 
   val featureNotifications: Boolean = true,
   val featureMedia: Boolean = true,
-  val featureCalls: Boolean = true,
   val featureCharging: Boolean = true,
-  val featureTimers: Boolean = true,
-  val featureBluetooth: Boolean = true,
-  val featureDownloads: Boolean = true,
-  val featureSystemEvents: Boolean = true,
 
   // Per-app notification filtering
   val notificationFilterEnabled: Boolean = false,
   val allowedNotificationPackages: Set<String> = emptySet(),
   val blockedPackages: Set<String> = emptySet()
 )
+
 

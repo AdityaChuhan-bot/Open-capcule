@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -74,6 +75,61 @@ fun CustomizationScreen(
       .padding(16.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp)
   ) {
+    // -------------------------------------------------------------
+    // MOTOROLA G85 5G SPEED METER CLEARANCE PRESET
+    // -------------------------------------------------------------
+    Card(
+      modifier = Modifier.fillMaxWidth(),
+      colors = CardDefaults.cardColors(containerColor = PrimaryBlue.copy(alpha = 0.12f)),
+      shape = RoundedCornerShape(20.dp)
+    ) {
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+      ) {
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = "Motorola G85 5G Preset",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryBlue
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = "Auto-shrinks idle capsule to 36dp notch circle so it never overlaps your status bar internet speed meter. Drops expanded card lower to clear front camera.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Button(
+          onClick = {
+            CapsuleManager.updateConfig {
+              it.copy(
+                compactIdleNotch = true,
+                idleWidthDp = 36,
+                idleHeightDp = 36,
+                autoAlignCutout = true,
+                offsetY = 12,
+                expandedOffsetYExtraDp = 20,
+                collapsedWidthDp = 140
+              )
+            }
+          },
+          colors = ButtonDefaults.buttonColors(
+            containerColor = PrimaryBlue,
+            contentColor = Color.Black
+          ),
+          modifier = Modifier.testTag("btn_apply_moto_preset")
+        ) {
+          Text("Apply", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+      }
+    }
+
     // -------------------------------------------------------------
     // CUTOUT ALIGNMENT & POSITION
     // -------------------------------------------------------------
@@ -176,8 +232,30 @@ fun CustomizationScreen(
       ) {
         Text("Dimensions & Geometry", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
+        ToggleSetting(
+          title = "Compact Idle Notch (Clear Status Bar)",
+          subtitle = "Auto-shrinks capsule to ${config.idleWidthDp} dp camera circle when idle, avoiding overlap with Motorola's internet speed meter.",
+          checked = config.compactIdleNotch,
+          onCheckedChange = { checked ->
+            CapsuleManager.updateConfig { it.copy(compactIdleNotch = checked) }
+          }
+        )
+
+        if (config.compactIdleNotch) {
+          SettingSlider(
+            label = "Idle Camera Cutout Size",
+            valueText = "${config.idleWidthDp} dp",
+            value = config.idleWidthDp.toFloat(),
+            valueRange = 26f..72f,
+            onValueChange = {
+              val size = it.toInt()
+              CapsuleManager.updateConfig { cfg -> cfg.copy(idleWidthDp = size, idleHeightDp = size) }
+            }
+          )
+        }
+
         SettingSlider(
-          label = "Collapsed Pill Width",
+          label = "Active Collapsed Pill Width",
           valueText = "${config.collapsedWidthDp} dp",
           value = config.collapsedWidthDp.toFloat(),
           valueRange = 80f..260f,
@@ -206,6 +284,14 @@ fun CustomizationScreen(
           value = config.expandedHeightDp.toFloat(),
           valueRange = 100f..360f,
           onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(expandedHeightDp = it.toInt()) } }
+        )
+
+        SettingSlider(
+          label = "Expanded Vertical Drop",
+          valueText = "${config.expandedOffsetYExtraDp} dp lower",
+          value = config.expandedOffsetYExtraDp.toFloat(),
+          valueRange = 0f..60f,
+          onValueChange = { CapsuleManager.updateConfig { cfg -> cfg.copy(expandedOffsetYExtraDp = it.toInt()) } }
         )
 
         SettingSlider(
@@ -510,26 +596,14 @@ fun CustomizationScreen(
       ) {
         Text("Active Event Modules", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-        ToggleSetting("Media Playback", "Music tracks, artwork and seek bar", config.featureMedia) { checked ->
+        ToggleSetting("Media Playback", "Music tracks, artwork and playback controls", config.featureMedia) { checked ->
           CapsuleManager.updateConfig { it.copy(featureMedia = checked) }
         }
         ToggleSetting("App Notifications", "Selected incoming alerts", config.featureNotifications) { checked ->
           CapsuleManager.updateConfig { it.copy(featureNotifications = checked) }
         }
-        ToggleSetting("Phone Calls", "Incoming and ongoing call banner", config.featureCalls) { checked ->
-          CapsuleManager.updateConfig { it.copy(featureCalls = checked) }
-        }
-        ToggleSetting("Timers & Stopwatch", "Live countdowns and stopwatch counters", config.featureTimers) { checked ->
-          CapsuleManager.updateConfig { it.copy(featureTimers = checked) }
-        }
         ToggleSetting("Battery & Charging", "Plugged in, fast charging and full alerts", config.featureCharging) { checked ->
           CapsuleManager.updateConfig { it.copy(featureCharging = checked) }
-        }
-        ToggleSetting("Headsets & Audio Devices", "Audio accessory connect alerts", config.featureBluetooth) { checked ->
-          CapsuleManager.updateConfig { it.copy(featureBluetooth = checked) }
-        }
-        ToggleSetting("Downloads", "DownloadManager task completion", config.featureDownloads) { checked ->
-          CapsuleManager.updateConfig { it.copy(featureDownloads = checked) }
         }
       }
     }

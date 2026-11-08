@@ -220,8 +220,8 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       WindowManager.LayoutParams.WRAP_CONTENT,
       WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
       WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
       PixelFormat.TRANSLUCENT
     ).apply {
       this.gravity = gravity
@@ -277,10 +277,19 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
           }
         }
 
-        // GestureDetector for detecting swipe-up gestures to collapse the capsule
+        // GestureDetector for detecting tap-to-expand and swipe-up gestures
         val gestureDetector = GestureDetector(
           this@CapsuleOverlayService,
           object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+              if (!CapsuleManager.isExpanded.value) {
+                Log.d(TAG, "Single tap up on collapsed capsule -> expanding")
+                CapsuleManager.expandCapsule()
+                return true
+              }
+              return false
+            }
+
             override fun onFling(
               e1: MotionEvent?,
               e2: MotionEvent,
@@ -317,22 +326,44 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
         var touchStartY = 0f
         var touchStartX = 0f
+        var touchStartTime = 0L
         var isTrackingSwipe = false
 
         setOnTouchListener { _, event ->
-          // Let Compose's Surface.clickable receive every touch while collapsed.
-          // A View.OnTouchListener that consumes DOWN/UP can starve Compose's
-          // pointer-input system, making the pill look visible but not tappable.
-          if (!CapsuleManager.isExpanded.value) {
-            return@setOnTouchListener false
-          }
-
           // Tap outside the overlay window dismisses the expanded capsule
           if (event.action == MotionEvent.ACTION_OUTSIDE) {
             if (CapsuleManager.isExpanded.value) {
               handleOutsideTap()
               return@setOnTouchListener true
             }
+            return@setOnTouchListener false
+          }
+
+          // Direct tap-to-expand on collapsed pill: works instantly anywhere on the pill
+          if (!CapsuleManager.isExpanded.value) {
+            when (event.actionMasked) {
+              MotionEvent.ACTION_DOWN -> {
+                touchStartY = event.rawY
+                touchStartX = event.rawX
+                touchStartTime = System.currentTimeMillis()
+              }
+              MotionEvent.ACTION_UP -> {
+                val duration = System.currentTimeMillis() - touchStartTime
+                val diffY = Math.abs(event.rawY - touchStartY)
+                val diffX = Math.abs(event.rawX - touchStartX)
+                val density = resources.displayMetrics.density
+                val maxTapDist = 24f * density // 24dp movement tolerance
+                if (duration < 600 && diffX < maxTapDist && diffY < maxTapDist) {
+                  Log.d(TAG, "Touch on pill detected -> expanding capsule")
+                  CapsuleManager.expandCapsule()
+                  return@setOnTouchListener true
+                }
+              }
+            }
+            if (gestureDetector.onTouchEvent(event)) {
+              return@setOnTouchListener true
+            }
+            // Allow event to fall through to Compose as well
             return@setOnTouchListener false
           }
 
@@ -343,7 +374,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             }
 
             val density = resources.displayMetrics.density
-            val minSwipeDist = 24f * density
+            val minSwipeDist = 20f * density
 
             when (event.actionMasked) {
               MotionEvent.ACTION_DOWN -> {
@@ -417,8 +448,8 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
     } else displayMetrics.widthPixels
 
     val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-      WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-      WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+      WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+      WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
 
     currentParams.flags = if (isExpanded && cfg.tapOutsideToDismissEnabled) {
       baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
@@ -436,10 +467,10 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
     val currentWidthDp = if (isExpanded) cfg.expandedWidthDp else cfg.collapsedWidthDp
     val cutout = detectedCutoutRect
+    val expandedExtraY = if (isExpanded) (cfg.expandedOffsetYExtraDp * density).toInt() else 0
+
     if (cfg.autoAlignCutout) {
-      // Center punch-hole on this device. Overlay inset Rect coordinates may be
-      // relative to the overlay rather than full display, causing the observed
-      // left shift. Use stable center gravity and anchor below status-bar inset.
+      // Center punch-hole on this device.
       currentParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
       currentParams.x = (cfg.offsetX * density).toInt()
       val statusBarTop = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -448,16 +479,12 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
             ?.getInsets(android.view.WindowInsets.Type.statusBars())?.top ?: 0
         } catch (_: Exception) { 0 }
       } else 0
-      // DisplayCutout bounding rectangles are in display coordinates. For an
-      // overlay using LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS, adding the status-bar
-      // inset places the pill below the physical punch-hole. Anchor at the top
-      // edge of the display instead; use cutout.top only when it is a valid
-      // display-coordinate value. The default offset baseline (12dp) means 0dp.
       val cutoutTop = cutout?.top?.takeIf {
         it >= 0 && it < (48f * density).toInt()
       }
       val targetTop = cutoutTop ?: 0
-      currentParams.y = (targetTop + ((cfg.offsetY - 12) * density).toInt()).coerceAtLeast(0)
+      val baseCollapsedY = (targetTop + ((cfg.offsetY - 12) * density).toInt()).coerceAtLeast(0)
+      currentParams.y = baseCollapsedY + expandedExtraY
     } else {
       val g = when (cfg.position) {
         CapsulePosition.LEFT -> Gravity.TOP or Gravity.START
@@ -466,7 +493,7 @@ class CapsuleOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner
       }
       currentParams.gravity = g
       currentParams.x = (cfg.offsetX * density).toInt()
-      currentParams.y = (cfg.offsetY * density).toInt()
+      currentParams.y = (cfg.offsetY * density).toInt() + expandedExtraY
     }
 
     try {

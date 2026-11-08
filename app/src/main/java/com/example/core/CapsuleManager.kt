@@ -24,15 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
 enum class DemoEventType {
   MEDIA,
   NOTIFICATION,
-  CALL_INCOMING,
-  CALL_ONGOING,
-  TIMER,
-  STOPWATCH,
-  CHARGING,
-  BLUETOOTH,
-  DOWNLOAD,
-  SCREENSHOT,
-  RINGER
+  CHARGING
 }
 
 object CapsuleManager {
@@ -53,7 +45,6 @@ object CapsuleManager {
   // In-memory queue of active events by ID
   private val eventMap = ConcurrentHashMap<String, CapsuleEvent>()
   private var transientDismissJob: Job? = null
-  private var timerTickJob: Job? = null
 
   fun initialize(context: Context) {
     if (appContext != null) return
@@ -98,12 +89,7 @@ object CapsuleManager {
           true
         }
       }
-      is CapsuleEvent.Call -> cfg.featureCalls
-      is CapsuleEvent.Timer, is CapsuleEvent.Stopwatch -> cfg.featureTimers
       is CapsuleEvent.Charging -> cfg.featureCharging
-      is CapsuleEvent.Bluetooth -> cfg.featureBluetooth
-      is CapsuleEvent.Download -> cfg.featureDownloads
-      is CapsuleEvent.Screenshot, is CapsuleEvent.Ringer -> cfg.featureSystemEvents
     }
 
     if (!isEnabled) return
@@ -111,6 +97,7 @@ object CapsuleManager {
     eventMap[event.id] = event
     reevaluateActiveEvent(newEvent = event)
   }
+
 
   fun removeEvent(id: String) {
     eventMap.remove(id)
@@ -124,7 +111,6 @@ object CapsuleManager {
     _activeEvent.value = null
     _isExpanded.value = false
     transientDismissJob?.cancel()
-    timerTickJob?.cancel()
   }
 
   private fun reevaluateActiveEvent(newEvent: CapsuleEvent?) {
@@ -250,42 +236,6 @@ object CapsuleManager {
     }
   }
 
-  fun onTimerPauseResume() {
-    val current = _activeEvent.value as? CapsuleEvent.Timer ?: return
-    val updated = current.copy(isRunning = !current.isRunning)
-    postEvent(updated)
-    performHaptic()
-  }
-
-  fun onTimerReset() {
-    removeEvent("timer_active")
-    timerTickJob?.cancel()
-    performHaptic()
-  }
-
-  fun onTimerAddMinute() {
-    val current = _activeEvent.value as? CapsuleEvent.Timer ?: return
-    val updated = current.copy(
-      remainingSeconds = current.remainingSeconds + 60,
-      totalSeconds = current.totalSeconds + 60,
-      isAlarmState = false
-    )
-    postEvent(updated)
-    performHaptic()
-  }
-
-  fun onCallAnswer() {
-    val current = _activeEvent.value as? CapsuleEvent.Call ?: return
-    val updated = current.copy(state = CapsuleEvent.CallState.ONGOING, durationSeconds = 0)
-    postEvent(updated)
-    performHaptic()
-  }
-
-  fun onCallEnd() {
-    removeEvent("call_active")
-    performHaptic()
-  }
-
   // Demo simulator triggers for immediate testing and verification
   fun triggerDemo(type: DemoEventType) {
     performHaptic()
@@ -307,71 +257,12 @@ object CapsuleManager {
           CapsuleEvent.Notification(
             id = "demo_notif_${System.currentTimeMillis()}",
             title = "Sarah Jenkins",
-            content = "Hey! Let's review the privacy audit for OpenCapsule tomorrow.",
+            content = "Hey! Dynamic Island looks awesome on Android 16.",
             appName = "Messages",
             packageName = "com.google.android.apps.messaging",
             isSensitive = false
           )
         )
-      }
-      DemoEventType.CALL_INCOMING -> {
-        postEvent(
-          CapsuleEvent.Call(
-            callerName = "Alex Rivera",
-            state = CapsuleEvent.CallState.INCOMING
-          )
-        )
-      }
-      DemoEventType.CALL_ONGOING -> {
-        postEvent(
-          CapsuleEvent.Call(
-            callerName = "Alex Rivera",
-            state = CapsuleEvent.CallState.ONGOING,
-            durationSeconds = 85L
-          )
-        )
-      }
-      DemoEventType.TIMER -> {
-        timerTickJob?.cancel()
-        var remaining = 45
-        val total = 45
-        postEvent(
-          CapsuleEvent.Timer(
-            label = "Tea Timer",
-            remainingSeconds = remaining,
-            totalSeconds = total,
-            isRunning = true,
-            isAlarmState = false
-          )
-        )
-        timerTickJob = scope.launch {
-          while (remaining > 0) {
-            delay(1000L)
-            remaining--
-            val isAlarm = remaining == 0
-            postEvent(
-              CapsuleEvent.Timer(
-                label = "Tea Timer",
-                remainingSeconds = remaining,
-                totalSeconds = total,
-                isRunning = remaining > 0,
-                isAlarmState = isAlarm
-              )
-            )
-          }
-        }
-      }
-      DemoEventType.STOPWATCH -> {
-        timerTickJob?.cancel()
-        var elapsed = 0L
-        postEvent(CapsuleEvent.Stopwatch(elapsedSeconds = elapsed, isRunning = true))
-        timerTickJob = scope.launch {
-          while (true) {
-            delay(1000L)
-            elapsed++
-            postEvent(CapsuleEvent.Stopwatch(elapsedSeconds = elapsed, isRunning = true))
-          }
-        }
       }
       DemoEventType.CHARGING -> {
         postEvent(
@@ -383,31 +274,7 @@ object CapsuleManager {
           )
         )
       }
-      DemoEventType.BLUETOOTH -> {
-        postEvent(
-          CapsuleEvent.Bluetooth(
-            deviceName = "QuietComfort 45",
-            isConnected = true,
-            isHeadset = true
-          )
-        )
-      }
-      DemoEventType.DOWNLOAD -> {
-        postEvent(
-          CapsuleEvent.Download(
-            id = "demo_dl",
-            fileName = "ubuntu-minimal.iso",
-            progressPercent = 68,
-            isComplete = false
-          )
-        )
-      }
-      DemoEventType.SCREENSHOT -> {
-        postEvent(CapsuleEvent.Screenshot())
-      }
-      DemoEventType.RINGER -> {
-        postEvent(CapsuleEvent.Ringer(mode = CapsuleEvent.RingerMode.VIBRATE))
-      }
     }
   }
 }
+

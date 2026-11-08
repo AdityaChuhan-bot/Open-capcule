@@ -27,6 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -112,13 +113,28 @@ fun OpenCapsuleDynamicView(
 
   val screenWidthDp = LocalConfiguration.current.screenWidthDp
   val maxUsableWidthDp = (screenWidthDp - 24).coerceAtLeast(1)
+  val isIdle = event == null
   val targetWidth = if (isExpanded) {
     config.expandedWidthDp.coerceAtMost(maxUsableWidthDp).dp
-  } else {
+  } else if (!isIdle || !config.compactIdleNotch) {
     config.collapsedWidthDp.coerceAtMost(maxUsableWidthDp).dp
+  } else {
+    config.idleWidthDp.coerceAtMost(maxUsableWidthDp).dp
   }
-  val targetHeight = if (isExpanded) config.expandedHeightDp.dp else config.collapsedHeightDp.dp
-  val targetCornerRadius = if (isExpanded) 28.dp else config.cornerRadiusDp.dp
+  val targetHeight = if (isExpanded) {
+    config.expandedHeightDp.dp
+  } else if (!isIdle || !config.compactIdleNotch) {
+    config.collapsedHeightDp.dp
+  } else {
+    config.idleHeightDp.dp
+  }
+  val targetCornerRadius = if (isExpanded) {
+    28.dp
+  } else if (!isIdle || !config.compactIdleNotch) {
+    config.cornerRadiusDp.dp
+  } else {
+    (config.idleHeightDp / 2).dp
+  }
 
   val animatedWidth by animateDpAsState(
     targetValue = targetWidth,
@@ -163,18 +179,8 @@ fun OpenCapsuleDynamicView(
         enabled = !isExpanded,
         onClick = onToggleExpand
       )
-      .pointerInput(isExpanded, config.swipeUpToCollapseEnabled) {
-        if (isExpanded && config.swipeUpToCollapseEnabled) {
-          detectVerticalDragGestures { _, dragAmount ->
-            // Upward swipe to collapse the expanded widget
-            if (dragAmount < -12f) {
-              onCollapse()
-            }
-          }
-        }
-      }
       .semantics {
-        contentDescription = if (isExpanded) "OpenCapsule expanded" else "OpenCapsule idle, tap to expand"
+        contentDescription = if (isExpanded) "Capsule expanded" else "Capsule idle, tap to expand"
         if (!isExpanded) role = Role.Button
       }
       .testTag("open_capsule_main_view"),
@@ -183,7 +189,10 @@ fun OpenCapsuleDynamicView(
   ) {
     Box(
       modifier = Modifier
-        .padding(horizontal = if (isExpanded) 16.dp else 10.dp, vertical = if (isExpanded) 12.dp else 4.dp),
+        .padding(
+          horizontal = if (isExpanded) 16.dp else if (!isIdle) 10.dp else 0.dp,
+          vertical = if (isExpanded) 12.dp else if (!isIdle) 4.dp else 0.dp
+        ),
       contentAlignment = Alignment.Center
     ) {
       AnimatedContent(
@@ -247,7 +256,21 @@ fun OpenCapsuleDynamicView(
         label = "capsule_content_transition"
       ) { expanded ->
         if (expanded) {
-          ExpandedCapsuleContent(event = event, config = config, onCollapse = onCollapse)
+          Box(
+            modifier = Modifier
+              .fillMaxSize()
+              .pointerInput(config.swipeUpToCollapseEnabled) {
+                if (config.swipeUpToCollapseEnabled) {
+                  detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount < -12f) {
+                      onCollapse()
+                    }
+                  }
+                }
+              }
+          ) {
+            ExpandedCapsuleContent(event = event, config = config, onCollapse = onCollapse)
+          }
         } else {
           CollapsedCapsuleContent(event = event, config = config)
         }

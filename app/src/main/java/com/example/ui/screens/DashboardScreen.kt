@@ -240,7 +240,7 @@ fun DashboardScreen(
           Box(
             modifier = Modifier
               .padding(
-                top = config.offsetY.dp,
+                top = (config.offsetY + if (isExpanded) config.expandedOffsetYExtraDp else 0).dp,
                 start = if (effectivePosition == CapsulePosition.LEFT) config.offsetX.dp else 0.dp,
                 end = if (effectivePosition == CapsulePosition.RIGHT) config.offsetX.dp else 0.dp
               )
@@ -419,7 +419,7 @@ fun DashboardScreen(
         }
 
         Text(
-          text = "Test how OpenCapsule seamlessly arbitrates between media, incoming calls, timers, and alerts:",
+          text = "Test how OpenCapsule arbitrates between active media playback, charging, and notifications:",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -432,35 +432,11 @@ fun DashboardScreen(
           TriggerChip(label = "Music Track", icon = Icons.Default.MusicNote) {
             CapsuleManager.triggerDemo(DemoEventType.MEDIA)
           }
-          TriggerChip(label = "Tea Timer", icon = Icons.Default.HourglassBottom) {
-            CapsuleManager.triggerDemo(DemoEventType.TIMER)
-          }
-          TriggerChip(label = "Stopwatch", icon = Icons.Default.PlayArrow) {
-            CapsuleManager.triggerDemo(DemoEventType.STOPWATCH)
-          }
-          TriggerChip(label = "Incoming Call", icon = Icons.Default.Call) {
-            CapsuleManager.triggerDemo(DemoEventType.CALL_INCOMING)
-          }
-          TriggerChip(label = "Ongoing Call", icon = Icons.Default.Call) {
-            CapsuleManager.triggerDemo(DemoEventType.CALL_ONGOING)
-          }
           TriggerChip(label = "Charging 84%", icon = Icons.Default.BatteryChargingFull) {
             CapsuleManager.triggerDemo(DemoEventType.CHARGING)
           }
           TriggerChip(label = "Notification", icon = Icons.Default.Notifications) {
             CapsuleManager.triggerDemo(DemoEventType.NOTIFICATION)
-          }
-          TriggerChip(label = "Headphones", icon = Icons.Default.Bluetooth) {
-            CapsuleManager.triggerDemo(DemoEventType.BLUETOOTH)
-          }
-          TriggerChip(label = "Download 68%", icon = Icons.Default.Download) {
-            CapsuleManager.triggerDemo(DemoEventType.DOWNLOAD)
-          }
-          TriggerChip(label = "Screenshot", icon = Icons.Default.CameraAlt) {
-            CapsuleManager.triggerDemo(DemoEventType.SCREENSHOT)
-          }
-          TriggerChip(label = "Ringer Vibrate", icon = Icons.Default.Vibration) {
-            CapsuleManager.triggerDemo(DemoEventType.RINGER)
           }
         }
       }
